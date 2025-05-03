@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>webcyte</title>
+        <link rel="stylesheet" href="index.css">
+    </head>
+    <body>
+        
+        <span class="header">
+            <h1>webcyte</h1>
+            <span>
+                <button onclick="save()">save</button>
+                <span class="divider">|</span>
+                <button onclick="load()">load</button>
+            </span>
+        </span>
+        <hr>
+        <span class="tagline">makes cellular automata nervous</span>
+        
+        <noscript>
+            <div id="noscript">
+                <strong>ERROR!</strong>
+                <p>This browser doesn't support JavaScript, or has JavaScript disabled.</p>
+                <p>(webcyte requires JavaScript to function)</p>
+            </div>
+        </noscript>
+
+        <div id="info"></div>
+        
+        <div id="app" class="col">
+            
+            <div class="row">
+                <canvas id="targetCanvas"></canvas>
+            </div>
+            
+            <div class="row">
+                <canvas id="gridCanvas"></canvas>
+                <button onclick="run()">run</button>
+                <button onclick="step()">step</button>
+                <button onclick="toggleMode(this)">learn</button>
+            </div>
+        
+        </div>
+
+
+
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" onload="console.log('tfjs laoded.')" onerror="alert('Error loading tensorflow library.')"></script>
+        <script src="index.js"></script>
+    </body>
+</html>

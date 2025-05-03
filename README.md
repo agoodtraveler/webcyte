@@ -1,2 +1,5 @@
 # webcyte
-Web based cellular automata playground.
+makes cellular automata nervous
+
+
+
