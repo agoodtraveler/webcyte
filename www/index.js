@@ -10,9 +10,10 @@ const INIT_WEIGHT_MIN = -0.1;
 const INIT_WEIGHT_MAX = 0.1;
 
 const MIN_EPOCH_LENGTH = 64;
-const MAX_EPOCH_LENGTH = 96;
+const MAX_EPOCH_LENGTH = 256;
 const CELL_FIRING_RATE = 0.5;
-const LIVE_THRESHOLD = 0.1;
+const LIVE_THRESHOLD = 0.4;
+const DECAY_RATE = 0.01;
 
 const SAMPLE ='🙂'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
 const SAMPLE_HEIGHT = 0.5 * GRID_HEIGHT;
@@ -27,7 +28,9 @@ targetCanvas.width = GRID_WIDTH;
 targetCanvas.height = GRID_HEIGHT;
 const targetCtx = targetCanvas.getContext('2d');
 
-let selectedColor = '#FFFFFFFF';
+let seedColor = '#FFFFFFFF';
+let seedSize = 2;
+let brushColor = '#FFFFFFFF';
 let brushSize = 2;
 
 targetCanvas.onmousedown = (event) => {
@@ -35,7 +38,7 @@ targetCanvas.onmousedown = (event) => {
     const y = Math.floor((event.offsetY * GRID_HEIGHT) / targetCanvas.offsetHeight);
     // console.log(`targetCanvas:  x = ${ x };  y = ${ y };  values = ${ targetTensor.slice([x, y, 0], [1, 1, 4]).dataSync() }`);
     const pixel = targetCtx.getImageData(x, y, 1, 1).data;
-    selectedColor = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
+    brushColor = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
 }
 
 const drawTarget = (angle = 0 * Math.PI) => {
@@ -59,8 +62,6 @@ gridCanvas.width = GRID_WIDTH;
 gridCanvas.height = GRID_HEIGHT;
 const gridCtx = gridCanvas.getContext('2d');
 
-let shouldPaint = false;
-
 
 
 let gridState = tf.zeros([ GRID_HEIGHT, GRID_WIDTH, GRID_DEPTH ]);
@@ -71,13 +72,30 @@ const setLearningRate = rate => {
     console.log('learning rate set', rate);
 }
 
+const seedCtx = document.createElement('canvas').getContext('2d');
+seedCtx.canvas.width = GRID_WIDTH;
+seedCtx.canvas.height = GRID_HEIGHT;
+const paintSeed = (toState, x, y, size, color = brushColor) => {
+    seedCtx.clearRect(0, 0, GRID_WIDTH, GRID_HEIGHT);
+    seedCtx.fillStyle = '#00000000';
+    seedCtx.fillRect(0, 0, GRID_WIDTH, GRID_HEIGHT);
+    seedCtx.fillStyle = color;
+    seedCtx.fillRect(x, y, size, size);
+    return tf.tidy(() => {
+        const seedTensor = tf.browser.fromPixels(seedCtx.canvas, 4).cast('float32').div(255.0);
+        const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ GRID_HEIGHT, GRID_WIDTH, 1 ]);
+        const notSeedMask = seedAlpha.less(0.5).cast('float32');
+        const seedState = seedTensor.concat(seedAlpha.tile([ 1, 1, GRID_DEPTH - 4 ]), 2);
+        return toState.mul(notSeedMask).add(seedState);
+    });
+}
+
+
 gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
     if (event.buttons & 1 === 1) {
         const x = Math.floor((event.offsetX * GRID_WIDTH) / gridCanvas.offsetWidth);
         const y = Math.floor((event.offsetY * GRID_HEIGHT) / gridCanvas.offsetHeight);
-        gridCtx.fillStyle = selectedColor;
-        gridCtx.fillRect(x, y, brushSize, brushSize);
-        shouldPaint = true;
+        gridState = paintSeed(gridState, x, y, brushSize, brushColor);
     }
     // console.log(`gridCanvas: x = ${ x };  y = ${ y };  values = ${ gridState.slice([x, y, 0], [1, 1, GRID_DEPTH]).dataSync() }`);
 }
@@ -108,33 +126,19 @@ const render = (state, ctx) => {
     const rgbaArray = new Uint8ClampedArray(state.slice([ 0, 0, 0 ], [ GRID_HEIGHT, GRID_WIDTH, 4 ]).mul(255).cast('int32').dataSync());
     ctx.putImageData(new ImageData(rgbaArray, GRID_WIDTH, GRID_HEIGHT), 0, 0);
 }
-const paint = (toState, fromCanvas) => {
-    return tf.concat([ tf.browser.fromPixels(fromCanvas, 4).cast('float32').div(255.0), toState.slice([ 0, 0, 4 ]) ], 2);
-}
-
-
-
 const cycle = (state) => {
     const alpha = state.slice([ 0, 0, 3 ], [ GRID_HEIGHT, GRID_WIDTH, 1 ]);
-    const liveMask = tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ]).sub(LIVE_THRESHOLD).mul(10).sigmoid(); // greater(LIVE_THRESHOLD).cast('float32');
+    // const liveMask = tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ]).greater(LIVE_THRESHOLD).cast('float32');
+    // const liveMask = tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ]).sub(LIVE_THRESHOLD).mul(10).sigmoid();
+    const liveMask = tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(LIVE_THRESHOLD).mul(10).sigmoid();
     const rndMask = tf.randomUniform([ GRID_HEIGHT, GRID_WIDTH ]).less(CELL_FIRING_RATE).cast('float32').expandDims(2);
+    state = tf.concat([
+        state.slice([ 0, 0, 0 ], [ GRID_HEIGHT, GRID_WIDTH, 3 ]),
+        alpha.sub(DECAY_RATE).clipByValue(0, 1),
+        state.slice([ 0, 0, 4 ], [ GRID_HEIGHT, GRID_WIDTH, GRID_DEPTH - 4 ])
+    ], 2);
     return state.add(model(state.mul(liveMask)).mul(rndMask));
 }
-
-const seed = document.createElement('canvas').getContext('2d');
-seed.canvas.width = GRID_WIDTH;
-seed.canvas.height = GRID_HEIGHT;
-seed.clearRect(0, 0, GRID_WIDTH, GRID_HEIGHT);
-seed.fillStyle = '#00000000';
-seed.fillRect(0, 0, GRID_WIDTH, GRID_HEIGHT);
-seed.fillStyle = '#FFFFFFFF';
-seed.fillRect(Math.floor(GRID_WIDTH / 2), Math.floor(GRID_HEIGHT / 2), 2, 2);
-const seedTensor = tf.browser.fromPixels(seed.canvas, 4).cast('float32').div(255.0);
-const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ GRID_HEIGHT, GRID_WIDTH, 1 ]);
-const seedState = seedTensor.concat(seedAlpha.tile([ 1, 1, GRID_DEPTH - 4 ]), 2);
-
-
-
 const epoch = (state, epochLength = MIN_EPOCH_LENGTH + Math.round((Math.random() * (MAX_EPOCH_LENGTH - MIN_EPOCH_LENGTH)))) => {
     const cost = optimizer.minimize(() => tf.tidy(() => {
         for (let i = 0; i < epochLength; ++i) {
@@ -166,12 +170,8 @@ const onFrame = time => {
     ++frameCount;
     const nextState = tf.tidy(() => {
         let state = gridState;
-        if (shouldPaint) {
-            state = paint(state, gridCanvas);
-            shouldPaint = false;
-        }
         if (isLearning) {
-            state = epoch(seedState);
+            state = epoch(paintSeed(tf.zeros([ GRID_HEIGHT, GRID_WIDTH, GRID_DEPTH ]), GRID_WIDTH / 2, GRID_HEIGHT / 2, seedSize, seedColor));
         } else {
             state = cycle(state);
         }
