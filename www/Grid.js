@@ -1,26 +1,21 @@
 class Grid {
-    static CELL_FIRING_RATE = 0.5;
-    static LIVE_THRESHOLD = 0.4;
-    static DECAY_RATE = 0.01;
     static MIN_EPOCH_LENGTH = 64;
-    static MAX_EPOCH_LENGTH = 256;
+    static MAX_EPOCH_LENGTH = 96;
 
     width = -1;
     height = -1;
     depth = -1;
-    modelWeights = null;
-    modelFn = null;
+    model = null;
 
     state = null;
     paintCtx = null;
     optimizer = null;
 
-    constructor(width, height, depth, weights, fn) {
+    constructor(width, height, depth, model) {
         this.width = width;
         this.height = height;
         this.depth = depth;
-        this.modelWeights = weights;
-        this.modelFn = fn;
+        this.model = model;
 
         this.state = tf.zeros([ width, height, depth ]);
 
@@ -30,34 +25,36 @@ class Grid {
 
         this.optimizer = tf.train.adam();
     }
+
     set learningRate(rate) {
         tf.dispose(this.optimizer);
         this.optimizer = tf.train.adam(rate);
         console.log('learning rate set', rate);
     }
 
-    serializeModel = () => {
-        const modelJSON = JSON.stringify({
-            weights: this.modelWeights.map(currLayer => [ currLayer[0].arraySync(), currLayer[1].arraySync() ]),
-            fn: this.modelFn.toString().split('\n').slice(1).slice(0, -1).join('\n')
+    async serializeModel() {
+        const modelJSON = JSON.stringify({ ...this.model,
+            weights: await Promise.all(this.model.weights.map(async (currLayer) => [ await currLayer[0].array(), await currLayer[1].array() ])),
+            fn: this.model.fn.toString().split('\n').slice(1).slice(0, -1).join('\n')
         });
         return modelJSON;
     }
-    deserializeModel = (modelJSON) => {
-        const { weights, fn } = JSON.parse(modelJSON);
-        this.modelWeights.forEach(([ kernel, bias ]) => {
-            tf.dispose(kernel);
-            tf.dispose(bias);
-        });
-        this.modelWeights = weights.map(([ kernelValues, biasValues ]) => [
+    deserializeModel(modelJSON) {
+        const model = JSON.parse(modelJSON);
+        model.weights = model.weights.map(([ kernelValues, biasValues ]) => [
             tf.variable(tf.tensor(kernelValues)),
             tf.variable(tf.tensor(biasValues))
         ]);
-        this.modelFn = new Function('state', 'weights', fn);
-        console.log(this.modelFn.toString());
+        model.fn = new Function('state', 'weights', model.fn);
+        this.model.weights.forEach(([ kernel, bias ]) => {
+            tf.dispose(kernel);
+            tf.dispose(bias);
+        });
+        this.model = model;
+        console.log(model);
     }
 
-    render = async (ctx) => {
+    async render(ctx) {
         const rgbaTensor = tf.tidy(() => this.state.slice([ 0, 0, 0 ], [ this.height, this.width, 4 ]).mul(255).cast('int32'));
         const rgbaArray = new Uint8ClampedArray(await rgbaTensor.data());
         tf.dispose(rgbaTensor);
@@ -87,14 +84,14 @@ class Grid {
         const prevState = this.state;
         this.state = tf.tidy(() => {
             const alpha = this.state.slice([ 0, 0, 3 ], [ this.height, this.width, 1 ]);
-            const liveMask = tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(Grid.LIVE_THRESHOLD).mul(10).sigmoid();
-            const rndMask = tf.randomUniform([ this.height, this.width ]).less(Grid.CELL_FIRING_RATE).cast('float32').expandDims(2);
+            const liveMask = tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
+            const rndMask = tf.randomUniform([ this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(2);
             this.state = tf.concat([
                 this.state.slice([ 0, 0, 0 ], [ this.height, this.width, 3 ]),
-                alpha.sub(Grid.DECAY_RATE).clipByValue(0, 1),
+                alpha.sub(this.model.decayRate).clipByValue(0, 1),
                 this.state.slice([ 0, 0, 4 ], [ this.height, this.width, this.depth - 4 ])
             ], 2);
-            return this.state.add(this.modelFn(this.state.mul(liveMask), this.modelWeights).mul(rndMask));
+            return this.state.add(this.model.fn(this.state.mul(liveMask), this.model.weights).mul(rndMask));
         });
         tf.dispose(prevState);
     }
