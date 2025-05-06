@@ -18,10 +18,15 @@ const LAYER_SHAPES = [
     [ 1, 1, GRID_DEPTH * INPUT_CHANNEL_MULTIPLIER, DENSE_LAYER_SIZE ],
     [ 1, 1, DENSE_LAYER_SIZE, GRID_DEPTH ]
 ];
-const MODEL_FN = (state) => {
-    state = state.conv2d(modelWeights[0][0], 1, 'same');
-    state = state.conv2d(modelWeights[1][0], 1, 'same').add(modelWeights[1][1]).relu();
-    state = state.conv2d(modelWeights[2][0], 1, 'same').add(modelWeights[2][1]).tanh();
+const DEFAULT_WEIGHTS = LAYER_SHAPES.map((currShape, layerIndex) => {
+    const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
+    const bias = tf.variable(tf.zeros([ currShape[3] ]));
+    return [ kernel, bias ];
+});
+const MODEL_FN = (state, weights) => {
+    state = state.conv2d(weights[0][0], 1, 'same');
+    state = state.conv2d(weights[1][0], 1, 'same').add(weights[1][1]).relu();
+    state = state.conv2d(weights[2][0], 1, 'same').add(weights[2][1]).tanh();
     return state.div(16.0);
 };
 
@@ -32,32 +37,6 @@ let seedSize = 2;
 let brushColor = seedColor;
 let brushSize = seedSize;
 
-let modelWeights = LAYER_SHAPES.map((currShape, layerIndex) => {
-    const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
-    const bias = tf.variable(tf.zeros([ currShape[3] ]));
-    return [ kernel, bias ];
-});
-let modelFn = MODEL_FN;
-
-const serializeModel = () => {
-    const modelJSON = JSON.stringify({
-        weights: modelWeights.map(currLayer => [ currLayer[0].arraySync(), currLayer[1].arraySync() ]),
-        fn: modelFn.toString().split('\n').slice(1).slice(0, -1).join('\n')
-    });
-    return modelJSON;
-}
-const deserializeModel = (modelJSON) => {
-    const { weights, fn } = JSON.parse(modelJSON);
-    modelWeights.forEach(([ kernel, bias ]) => {
-        tf.dispose(kernel);
-        tf.dispose(bias);
-    });
-    modelWeights = weights.map(([ kernelValues, biasValues ]) => [
-        tf.variable(tf.tensor(kernelValues)),
-        tf.variable(tf.tensor(biasValues))
-    ]);
-    modelFn = new Function('state', fn);
-}
 
 
 const appDiv = document.getElementById('app');
@@ -83,8 +62,13 @@ targetCtx.fillStyle = '#000000FF';
 targetCtx.translate((GRID_WIDTH) / 2, (GRID_HEIGHT) / 2);
 targetCtx.fillText(SAMPLE, -0.5 * sampleMeasurements.width, 0.5 * (SAMPLE_HEIGHT - sampleMeasurements.fontBoundingBoxDescent)); 
 
+
+
 const targetTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
-const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH);
+
+const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH, DEFAULT_WEIGHTS, MODEL_FN);
+
+
 
 const gridCanvas = document.getElementById('gridCanvas');
 gridCanvas.width = GRID_WIDTH;
@@ -119,9 +103,9 @@ const onFrame = time => {
     if (isLearning) {
         grid.clear();
         grid.paint(GRID_WIDTH / 2, GRID_HEIGHT / 2, seedSize, seedColor);
-        grid.epoch(targetTensor, modelFn);
+        grid.epoch(targetTensor);
     } else {
-        grid.cycle(modelFn);
+        grid.cycle();
     }
     grid.render(gridCtx);
     if (!isPaused) {
@@ -151,7 +135,7 @@ const toggleMode = (btnEl) => {
     btnEl.innerText = isLearning ? 'eval' : 'learn';
 }
 const save = () => {
-    const url = URL.createObjectURL(new Blob([ serializeModel() ], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([ grid.serializeModel() ], { type: 'application/json' }));
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
     link.download = 'weights.json';
@@ -170,7 +154,7 @@ const load = () => {
             return;
         }
         try {
-            deserializeModel(await file.text());
+            grid.deserializeModel(await file.text());
             console.log('Model loaded.');
         } catch (error) {
             console.error('Error loading model:', error);

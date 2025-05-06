@@ -8,14 +8,19 @@ class Grid {
     width = -1;
     height = -1;
     depth = -1;
+    modelWeights = null;
+    modelFn = null;
+
     state = null;
     paintCtx = null;
     optimizer = null;
 
-    constructor(width, height, depth) {
+    constructor(width, height, depth, weights, fn) {
         this.width = width;
         this.height = height;
         this.depth = depth;
+        this.modelWeights = weights;
+        this.modelFn = fn;
 
         this.state = tf.zeros([ width, height, depth ]);
 
@@ -30,6 +35,28 @@ class Grid {
         this.optimizer = tf.train.adam(rate);
         console.log('learning rate set', rate);
     }
+
+    serializeModel = () => {
+        const modelJSON = JSON.stringify({
+            weights: this.modelWeights.map(currLayer => [ currLayer[0].arraySync(), currLayer[1].arraySync() ]),
+            fn: this.modelFn.toString().split('\n').slice(1).slice(0, -1).join('\n')
+        });
+        return modelJSON;
+    }
+    deserializeModel = (modelJSON) => {
+        const { weights, fn } = JSON.parse(modelJSON);
+        this.modelWeights.forEach(([ kernel, bias ]) => {
+            tf.dispose(kernel);
+            tf.dispose(bias);
+        });
+        this.modelWeights = weights.map(([ kernelValues, biasValues ]) => [
+            tf.variable(tf.tensor(kernelValues)),
+            tf.variable(tf.tensor(biasValues))
+        ]);
+        this.modelFn = new Function('state', 'weights', fn);
+        console.log(this.modelFn.toString());
+    }
+
     render = async (ctx) => {
         const rgbaTensor = tf.tidy(() => this.state.slice([ 0, 0, 0 ], [ this.height, this.width, 4 ]).mul(255).cast('int32'));
         const rgbaArray = new Uint8ClampedArray(await rgbaTensor.data());
@@ -56,7 +83,7 @@ class Grid {
         });
         tf.dispose(prevState);
     }
-    cycle(model) {
+    cycle() {
         const prevState = this.state;
         this.state = tf.tidy(() => {
             const alpha = this.state.slice([ 0, 0, 3 ], [ this.height, this.width, 1 ]);
@@ -67,15 +94,15 @@ class Grid {
                 alpha.sub(Grid.DECAY_RATE).clipByValue(0, 1),
                 this.state.slice([ 0, 0, 4 ], [ this.height, this.width, this.depth - 4 ])
             ], 2);
-            return this.state.add(model(this.state.mul(liveMask)).mul(rndMask));
+            return this.state.add(this.modelFn(this.state.mul(liveMask), this.modelWeights).mul(rndMask));
         });
         tf.dispose(prevState);
     }
-    epoch(targetTensor, model) {
+    epoch(targetTensor) {
         const length = Grid.MIN_EPOCH_LENGTH + Math.round((Math.random() * (Grid.MAX_EPOCH_LENGTH - Grid.MIN_EPOCH_LENGTH)));
         this.optimizer.minimize(() => tf.tidy(() => {
             for (let i = 0; i < length; ++i) {
-                this.cycle(model);
+                this.cycle();
             }
             tf.keep(this.state);
             return tf.losses.meanSquaredError(targetTensor, this.state.slice([ 0, 0, 0 ], [ this.height, this.width, 4 ]));
