@@ -4,7 +4,6 @@ const GRID_WIDTH = 48;
 const GRID_HEIGHT = GRID_WIDTH;
 const GRID_DEPTH = 16;
 
-const BATCH_SIZE = 16;
 const INPUT_CHANNEL_MULTIPLIER = 1;
 const DENSE_LAYER_SIZE = 128;
 const INIT_WEIGHT_MIN = -0.1;
@@ -22,8 +21,8 @@ const LAYER_SHAPES = [
 ];
 
 const model = {
-    cellFiringRate: 0.5,
-    liveThreshold: 0.2,
+    cellFiringRate: 0.4,
+    liveThreshold: 0.5,
     decayRate: 0.01,
     weights: LAYER_SHAPES.map((currShape) => {
         const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
@@ -52,38 +51,17 @@ const targetCtx = targetCanvas.getContext('2d');
 targetCtx.font = `${ SAMPLE_HEIGHT }px monospace`;
 let sampleMeasurements = targetCtx.measureText(SAMPLE);
 targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-targetCtx.fillStyle = '#00000000';
-targetCtx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
 targetCtx.fillStyle = '#000000FF';
 targetCtx.translate((GRID_WIDTH) / 2, (GRID_HEIGHT) / 2);
 targetCtx.fillText(SAMPLE, -0.5 * sampleMeasurements.width, 0.5 * (SAMPLE_HEIGHT - sampleMeasurements.fontBoundingBoxDescent));
 
-gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
-    if (event.buttons & 1 === 1) {
-        const x = Math.floor((event.offsetX * GRID_WIDTH) / gridCanvas.offsetWidth);
-        const y = Math.floor((event.offsetY * GRID_HEIGHT) / gridCanvas.offsetHeight);
-        grid.paint(x, y, brushSize, brushColor);
-    }
-    // console.log(`gridCanvas: x = ${ x };  y = ${ y };  values = ${ gridState.slice([x, y, 0], [1, 1, GRID_DEPTH]).dataSync() }`);
-}
-targetCanvas.onmousedown = (event) => {
-    const x = Math.floor((event.offsetX * GRID_WIDTH) / targetCanvas.offsetWidth);
-    const y = Math.floor((event.offsetY * GRID_HEIGHT) / targetCanvas.offsetHeight);
-    // console.log(`targetCanvas:  x = ${ x };  y = ${ y };  values = ${ targetTensor.slice([x, y, 0], [1, 1, 4]).dataSync() }`);
-    const pixel = targetCtx.getImageData(x, y, 1, 1).data;
-    brushColor = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
-}
 
-
-
-let seedColor = '#FFFFFFFF';
-let seedSize = 2;
-let brushColor = seedColor;
-let brushSize = seedSize;
 
 const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH, model);
-const targetTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
+grid.targetTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
 
+let brushColor = grid.seedColor;
+let brushSize = grid.seedSize;
 
 
 const INFO_UPDATE_INTERVAL = 1000; // ms.
@@ -102,9 +80,7 @@ const onFrame = time => {
     }
     ++frameCount;
     if (isLearning) {
-        grid.clear();
-        grid.paint(GRID_WIDTH / 2, GRID_HEIGHT / 2, seedSize, seedColor);
-        grid.epoch(targetTensor);
+        grid.epoch();
     } else {
         grid.cycle();
     }
@@ -114,10 +90,15 @@ const onFrame = time => {
     } else {
         console.log('paused');
     }
-}
+};
 
 
 
+const cls = () => {
+    console.log('cls');
+    grid.clear();
+    grid.render(gridCtx);
+};
 const run = () => {
     if (isPaused) {
         isPaused = false;
@@ -134,7 +115,8 @@ const step = () => {
 const toggleMode = (btnEl) => {
     isLearning = !isLearning;
     btnEl.innerText = isLearning ? 'eval' : 'learn';
-}
+};
+
 const saveToFile = async () => {
     const url = URL.createObjectURL(new Blob([ await grid.serializeModel() ], { type: 'application/json' }));
     const link = document.body.appendChild(document.createElement('a'));
@@ -143,7 +125,7 @@ const saveToFile = async () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-}
+};
 const loadFromFile = () => {
     const fileInputEl = document.body.appendChild(document.createElement('input'));
     fileInputEl.type = 'file';
@@ -163,7 +145,23 @@ const loadFromFile = () => {
         document.body.removeChild(fileInputEl);
     });
     fileInputEl.click();
-}
+};
+
+gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
+    if (event.buttons & 1 === 1) {
+        const x = Math.floor((event.offsetX * GRID_WIDTH) / gridCanvas.offsetWidth);
+        const y = Math.floor((event.offsetY * GRID_HEIGHT) / gridCanvas.offsetHeight);
+        grid.paint(x - (brushSize / 2), y - (brushSize / 2), brushSize, brushColor);
+    }
+    // console.log(`gridCanvas: x = ${ x };  y = ${ y };  values = ${ gridState.slice([x, y, 0], [1, 1, GRID_DEPTH]).dataSync() }`);
+};
+targetCanvas.onmousedown = (event) => {
+    const x = Math.floor((event.offsetX * GRID_WIDTH) / targetCanvas.offsetWidth);
+    const y = Math.floor((event.offsetY * GRID_HEIGHT) / targetCanvas.offsetHeight);
+    // console.log(`targetCanvas:  x = ${ x };  y = ${ y };  values = ${ targetTensor.slice([x, y, 0], [1, 1, 4]).dataSync() }`);
+    const pixel = targetCtx.getImageData(x, y, 1, 1).data;
+    brushColor = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
+};
 
 
 
@@ -175,4 +173,4 @@ window.onload = async () => {
     } else {
         tf.enableProdMode();
     }
-}
+};
