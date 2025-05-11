@@ -31,8 +31,6 @@ class Grid {
         this.optimizer = tf.train.adam();
 
         this.paintCtx.clearRect(0, 0, this.width, this.height);
-        this.paintCtx.fillStyle = '#00000000';
-        this.paintCtx.fillRect(0, 0, this.width, this.height);
         this.paintCtx.fillStyle = this.seedColor;
         this.paintCtx.fillRect((width - this.seedSize) / 2, (height - this.seedSize) / 2, this.seedSize, this.seedSize);
         this.seedState = tf.tidy(() => {
@@ -68,7 +66,7 @@ class Grid {
             tf.dispose(bias);
         });
         this.model = model;
-        console.log(model);
+        console.log('model deserialized', model);
     }
 
     async render(ctx) {
@@ -84,12 +82,12 @@ class Grid {
     paint(x, y, size, color) {
         this.paintCtx.clearRect(0, 0, this.width, this.height);
         this.paintCtx.fillStyle = color;
-        this.paintCtx.fillRect(x, y, size, size);
+        this.paintCtx.fillRect(x - (size / 2), y - (size / 2), size, size);
         const prevState = this.state;
         this.state = tf.tidy(() => {
             const seedTensor = tf.browser.fromPixels(this.paintCtx.canvas, 4).cast('float32').div(255.0);
             const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ this.height, this.width, 1 ]);
-            const notSeedMask = seedAlpha.less(0.5 /* should be 0.0, or 1.0 everywhere */).cast('float32');
+            const notSeedMask = seedAlpha.less(0.5).cast('float32');
             const seedState = seedTensor.concat(seedAlpha.tile([ 1, 1, this.depth - 4 ]), 2);
             return this.state.mul(notSeedMask).add(seedState);
         });
@@ -119,12 +117,14 @@ class Grid {
     set targetTensor(targetTensor) {
         this.#targetTensor = targetTensor;
         this.#startStates.forEach(currState => tf.dispose(currState));
+
         this.#startStates = new Array(this.batchSize).fill(0).map(() => this.seedState.clone());
         //const rndMask = (prob) => tf.randomUniform([ this.height, this.width ]).less(prob).cast('float32').expandDims(2);
         //for (let i = this.#startStates.length; i < this.batchSize; ++i) {
             //const maskProb = 0.05 + Math.random() * 0.1;
             //this.#startStates.push(tf.tidy(() => tf.concat([ this.#targetTensor.mul(rndMask(maskProb)), tf.zeros([this.height, this.width, this.depth - 4 ])], 2)));
         //}
+        
         tf.dispose(this.#targetBatch);
         this.#targetBatch = this.#targetTensor.expandDims(0).tile([ this.batchSize, 1, 1, 1 ]);
     }

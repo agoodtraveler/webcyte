@@ -14,6 +14,8 @@ const SAMPLE_HEIGHT = 0.5 * GRID_HEIGHT;
 
 
 
+//--- model:
+
 const LAYER_SHAPES = [
     [ 3, 3, GRID_DEPTH, GRID_DEPTH * INPUT_CHANNEL_MULTIPLIER ],
     [ 1, 1, GRID_DEPTH * INPUT_CHANNEL_MULTIPLIER, DENSE_LAYER_SIZE ],
@@ -39,6 +41,8 @@ const model = {
 
 
 
+//--- ui:
+
 const gridCanvas = document.getElementById('gridCanvas');
 gridCanvas.width = GRID_WIDTH;
 gridCanvas.height = GRID_HEIGHT;
@@ -57,12 +61,17 @@ targetCtx.fillText(SAMPLE, -0.5 * sampleMeasurements.width, 0.5 * (SAMPLE_HEIGHT
 
 
 
+//--- grid:
+
 const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH, model);
 grid.targetTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
 
 let brushColor = grid.seedColor;
 let brushSize = grid.seedSize;
 
+
+
+//--- loop:
 
 const INFO_UPDATE_INTERVAL = 1000; // ms.
 const infoDiv = document.getElementById('info');
@@ -71,6 +80,10 @@ let frameCount = 0;
 let isPaused = true;
 let isLearning = false;
 const onFrame = time => {
+    if (isPaused) {
+        console.log('paused');
+        return;
+    }
     const dT = time - prevFrameTime;
     if (dT >= INFO_UPDATE_INTERVAL) {
         const { numBytes, numTensors, numDataBuffers } = tf.memory();
@@ -85,17 +98,14 @@ const onFrame = time => {
         grid.cycle();
     }
     grid.render(gridCtx);
-    if (!isPaused) {
-        window.requestAnimationFrame(onFrame);
-    } else {
-        console.log('paused');
-    }
+    window.requestAnimationFrame(onFrame);
 };
 
 
 
+//--- user actions:
+
 const cls = () => {
-    console.log('cls');
     grid.clear();
     grid.render(gridCtx);
 };
@@ -151,19 +161,19 @@ gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
     if (event.buttons & 1 === 1) {
         const x = Math.floor((event.offsetX * GRID_WIDTH) / gridCanvas.offsetWidth);
         const y = Math.floor((event.offsetY * GRID_HEIGHT) / gridCanvas.offsetHeight);
-        grid.paint(x - (brushSize / 2), y - (brushSize / 2), brushSize, brushColor);
+        grid.paint(x, y, brushSize, brushColor);
     }
-    // console.log(`gridCanvas: x = ${ x };  y = ${ y };  values = ${ gridState.slice([x, y, 0], [1, 1, GRID_DEPTH]).dataSync() }`);
 };
 targetCanvas.onmousedown = (event) => {
     const x = Math.floor((event.offsetX * GRID_WIDTH) / targetCanvas.offsetWidth);
     const y = Math.floor((event.offsetY * GRID_HEIGHT) / targetCanvas.offsetHeight);
-    // console.log(`targetCanvas:  x = ${ x };  y = ${ y };  values = ${ targetTensor.slice([x, y, 0], [1, 1, 4]).dataSync() }`);
     const pixel = targetCtx.getImageData(x, y, 1, 1).data;
     brushColor = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
 };
 
 
+
+//--- init:
 
 window.onload = async () => {
     document.getElementById('app').style.display = 'block';
