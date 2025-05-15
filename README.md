@@ -1,5 +1,5 @@
 # webcyte
-makes cellular automata nervous
+Neural Cellular Automata Playground
 
 
 

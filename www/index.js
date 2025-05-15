@@ -64,7 +64,7 @@ targetCtx.fillText(SAMPLE, -0.5 * sampleMeasurements.width, 0.5 * (SAMPLE_HEIGHT
 //--- grid:
 
 const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH, model);
-grid.targetTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
+grid.targetImgTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
 
 let brushColor = grid.seedColor;
 let brushSize = grid.seedSize;
@@ -113,6 +113,7 @@ const run = () => {
     if (isPaused) {
         isPaused = false;
         window.requestAnimationFrame(onFrame);
+        console.log('run');
     }
 };
 const step = () => {

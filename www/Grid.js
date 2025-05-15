@@ -3,7 +3,6 @@ class Grid {
     seedSize = 2;
     minEpochLength = 64;
     maxEpochLength = 128;
-    batchSize = 4;
 
     width = -1;
     height = -1;
@@ -34,9 +33,9 @@ class Grid {
         this.paintCtx.fillStyle = this.seedColor;
         this.paintCtx.fillRect((width - this.seedSize) / 2, (height - this.seedSize) / 2, this.seedSize, this.seedSize);
         this.seedState = tf.tidy(() => {
-            const seedTensor = tf.browser.fromPixels(this.paintCtx.canvas, 4).cast('float32').div(255.0);
-            const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ -1, -1, 1 ]);
-            return seedTensor.concat(seedAlpha.tile([ 1, 1, this.depth - 4 ]), 2);
+            const seedImgTensor = tf.browser.fromPixels(this.paintCtx.canvas, 4).cast('float32').div(255.0);
+            const seedAlpha = seedImgTensor.slice([ 0, 0, 3 ], [ -1, -1, 1 ]);
+            return seedImgTensor.concat(seedAlpha.tile([ 1, 1, this.depth - 4 ]), 2).expandDims(0);
         });
     }
 
@@ -93,54 +92,36 @@ class Grid {
         });
         tf.dispose(prevState);
     }
-    cycle(srcState = this.state) {
+    cycle() {
         const prevState = this.state;
         this.state = tf.tidy(() => {
-            const alpha = srcState.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
+            const alpha = this.state.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
             const liveMask = tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
             const activeMask = tf.randomUniform([ this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(2);
             this.state = tf.concat([
-                srcState.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 3 ]),
+                this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 3 ]),
                 alpha.sub(this.model.decayRate).clipByValue(0, 1),
-                srcState.slice([ 0, 0, 0, 4 ], [ -1, -1, -1, this.depth - 4 ])
+                this.state.slice([ 0, 0, 0, 4 ], [ -1, -1, -1, this.depth - 4 ])
             ], 3);
             return this.state.add(this.model.fn(this.state.mul(liveMask), this.model.weights).mul(activeMask));
         });
         tf.dispose(prevState);
     }
 
-    #targetTensor = null;
+    #targetImgTensor = null;
     #targetBatch = null;
-    get targetTensor() {
-        return this.#targetTensor;
+    get targetImgTensor() {
+        return this.#targetImgTensor;
     }
-    set targetTensor(targetTensor) {
-        this.#targetTensor = targetTensor;
-        this.#startStates.forEach(currState => tf.dispose(currState));
-
-        this.#startStates = new Array(this.batchSize).fill(0).map(() => this.seedState.clone());
-        //const rndMask = (prob) => tf.randomUniform([ this.height, this.width ]).less(prob).cast('float32').expandDims(2);
-        //for (let i = this.#startStates.length; i < this.batchSize; ++i) {
-            //const maskProb = 0.05 + Math.random() * 0.1;
-            //this.#startStates.push(tf.tidy(() => tf.concat([ this.#targetTensor.mul(rndMask(maskProb)), tf.zeros([this.height, this.width, this.depth - 4 ])], 2)));
-        //}
-        
+    set targetImgTensor(rgbaTensor) {
+        this.#targetImgTensor = rgbaTensor;
         tf.dispose(this.#targetBatch);
-        this.#targetBatch = this.#targetTensor.expandDims(0).tile([ this.batchSize, 1, 1, 1 ]);
-    }
-    #startStates = [];
-    getRndStartStateIndex() {
-        return Math.round(1 + Math.random() * (this.batchSize - 2));
-    }
-    addStartState(state) {
-        let rndIndex = this.getRndStartStateIndex();
-        tf.dispose(this.#startStates[rndIndex]);
-        this.#startStates[rndIndex] = state;
+        this.#targetBatch = this.#targetImgTensor.expandDims(0); // .tile([ this.batchSize, 1, 1, 1 ]);
     }
     epoch() {
         const length = this.minEpochLength + Math.round((Math.random() * (this.maxEpochLength - this.minEpochLength)));
         tf.dispose(this.state);
-        this.state = tf.stack(this.#startStates);
+        this.state = this.seedState.clone();
         
         this.optimizer.minimize(() => tf.tidy(() => {
             for (let i = 0; i < length; ++i) {
@@ -149,13 +130,6 @@ class Grid {
             tf.keep(this.state);
             return tf.losses.meanSquaredError(this.#targetBatch, this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 4 ]));
         }), false);
-
-        //for (let i = 0; i < 2; ++i) {
-            for (let j = 0; j < length / 3; ++j) {
-                this.cycle();
-            }
-            this.addStartState(this.state.slice([ this.getRndStartStateIndex(), 0, 0, 0 ], [ 1, -1, -1, -1 ]).squeeze(0));
-        //}
         console.log(`epochLength = ${ length };`);
     }
 }
