@@ -23,8 +23,8 @@ const LAYER_SHAPES = [
 ];
 
 const model = {
-    cellFiringRate: 0.4,
-    liveThreshold: 0.5,
+    cellFiringRate: 0.5,
+    liveThreshold: 0.1,
     decayRate: 0.01,
     weights: LAYER_SHAPES.map((currShape) => {
         const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
@@ -80,10 +80,6 @@ let frameCount = 0;
 let isPaused = true;
 let isLearning = false;
 const onFrame = time => {
-    if (isPaused) {
-        console.log('paused');
-        return;
-    }
     const dT = time - prevFrameTime;
     if (dT >= INFO_UPDATE_INTERVAL) {
         const { numBytes, numTensors, numDataBuffers } = tf.memory();
@@ -98,7 +94,11 @@ const onFrame = time => {
         grid.cycle();
     }
     grid.render(gridCtx);
-    window.requestAnimationFrame(onFrame);
+    if (isPaused) {
+        console.log('paused');
+    } else {
+        window.requestAnimationFrame(onFrame);
+    }
 };
 
 

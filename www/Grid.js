@@ -93,11 +93,22 @@ class Grid {
         tf.dispose(prevState);
     }
     cycle() {
+        // const approxGrad = tf.grad(tensor => tensor.sub(this.model.liveThreshold).mul(10).sigmoid());
+        const thresholdOp = tf.customGrad((tensor, save) => {
+            save([ tensor ]);
+            return {
+                value: tensor.greater(this.model.liveThreshold).cast('float32'),
+                gradFunc: (dy, [ tensor ]) => {
+                    const sigmoidGrad = tensor.sub(this.model.liveThreshold).mul(10).sigmoid().mul(tensor.sub(this.model.liveThreshold).mul(10).sigmoid().neg().add(1));
+                    return [ dy.mul(sigmoidGrad /*approxGrad(tensor)*/) ];
+                }
+            };
+        });
         const prevState = this.state;
         this.state = tf.tidy(() => {
             const alpha = this.state.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
-            const liveMask = tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
-            const activeMask = tf.randomUniform([ this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(2);
+            const liveMask = thresholdOp(tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ])); // tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
+            const activeMask = tf.randomUniform([1, this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(3);
             this.state = tf.concat([
                 this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 3 ]),
                 alpha.sub(this.model.decayRate).clipByValue(0, 1),
