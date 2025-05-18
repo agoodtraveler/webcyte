@@ -25,7 +25,7 @@ const LAYER_SHAPES = [
 const model = {
     cellFiringRate: 0.5,
     liveThreshold: 0.1,
-    decayRate: 0.01,
+    /*decayRate: 0.01,*/
     weights: LAYER_SHAPES.map((currShape) => {
         const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
         const bias = tf.variable(tf.zeros([ currShape[3] ]));
@@ -35,7 +35,7 @@ const model = {
         state = state.conv2d(weights[0][0], 1, 'same');
         state = state.conv2d(weights[1][0], 1, 'same').add(weights[1][1]).relu();
         state = state.conv2d(weights[2][0], 1, 'same').add(weights[2][1]).tanh();
-        return state.div(16.0);
+        return state;
     }
 };
 
@@ -89,7 +89,9 @@ const onFrame = time => {
     }
     ++frameCount;
     if (isLearning) {
-        grid.epoch();
+        for (let i = 0; i < 8; ++i) {
+            grid.epoch();
+        }
     } else {
         grid.cycle();
     }

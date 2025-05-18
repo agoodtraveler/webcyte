@@ -109,11 +109,11 @@ class Grid {
             const alpha = this.state.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
             const liveMask = thresholdOp(tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ])); // tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
             const activeMask = tf.randomUniform([1, this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(3);
-            this.state = tf.concat([
-                this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 3 ]),
-                alpha.sub(this.model.decayRate).clipByValue(0, 1),
-                this.state.slice([ 0, 0, 0, 4 ], [ -1, -1, -1, this.depth - 4 ])
-            ], 3);
+            // this.state = tf.concat([
+            //     this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 3 ]),
+            //     alpha.sub(this.model.decayRate).clipByValue(0, 1),
+            //     this.state.slice([ 0, 0, 0, 4 ], [ -1, -1, -1, this.depth - 4 ])
+            // ], 3);
             return this.state.add(this.model.fn(this.state.mul(liveMask), this.model.weights).mul(activeMask));
         });
         tf.dispose(prevState);
@@ -129,18 +129,19 @@ class Grid {
         tf.dispose(this.#targetBatch);
         this.#targetBatch = this.#targetImgTensor.expandDims(0); // .tile([ this.batchSize, 1, 1, 1 ]);
     }
+    #epochCount = 0;
     epoch() {
         const length = this.minEpochLength + Math.round((Math.random() * (this.maxEpochLength - this.minEpochLength)));
         tf.dispose(this.state);
         this.state = this.seedState.clone();
         
-        this.optimizer.minimize(() => tf.tidy(() => {
+        const cost = this.optimizer.minimize(() => tf.tidy(() => {
             for (let i = 0; i < length; ++i) {
                 this.cycle();
             }
             tf.keep(this.state);
             return tf.losses.meanSquaredError(this.#targetBatch, this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 4 ]));
-        }), false);
-        console.log(`epochLength = ${ length };`);
+        }), true);
+        console.log(`epoch ${ ++this.#epochCount }: length = ${ length };  cost = ${ cost.dataSync()[0] }`);
     }
 }
