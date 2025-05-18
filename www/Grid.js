@@ -2,7 +2,7 @@ class Grid {
     seedColor = '#FFFFFFFF';
     seedSize = 2;
     minEpochLength = 64;
-    maxEpochLength = 128;
+    maxEpochLength = 256;
 
     width = -1;
     height = -1;
@@ -93,14 +93,14 @@ class Grid {
         tf.dispose(prevState);
     }
     cycle() {
-        // const approxGrad = tf.grad(tensor => tensor.sub(this.model.liveThreshold).mul(10).sigmoid());
         const thresholdOp = tf.customGrad((tensor, save) => {
             save([ tensor ]);
             return {
                 value: tensor.greater(this.model.liveThreshold).cast('float32'),
                 gradFunc: (dy, [ tensor ]) => {
-                    const sigmoidGrad = tensor.sub(this.model.liveThreshold).mul(10).sigmoid().mul(tensor.sub(this.model.liveThreshold).mul(10).sigmoid().neg().add(1));
-                    return [ dy.mul(sigmoidGrad /*approxGrad(tensor)*/) ];
+                    const sigmoid = tensor.sub(this.model.liveThreshold).mul(10).sigmoid();
+                    const sigmoidGrad = sigmoid.mul(sigmoid.neg().add(1)); // TODO: figure out why tf.grad(tensor => tensor.sub(this.model.liveThreshold).mul(10).sigmoid())(tensor) doesn't work (exception in training)
+                    return [ dy.mul(sigmoidGrad) ];
                 }
             };
         });
