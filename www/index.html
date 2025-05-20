@@ -29,26 +29,32 @@
 
         <div id="info"></div>
         
-        <div id="app" class="col">
+        <div id="app" class="column">
             
-            <div class="row">
+            <p class="row">
                 <canvas id="targetCanvas"></canvas>
-            </div>
+            </p>
             
-            <div class="row">
+            <p class="row">
                 <canvas id="gridCanvas"></canvas>
                 <button onclick="cls()">cls</button>
                 <button onclick="run()">run</button>
                 <button onclick="step()">step</button>
                 <button onclick="toggleMode(this)">learn</button>
-            </div>
+                <button onclick="addSample()">sample</button>
+            </p>
         
         </div>
 
 
 
         <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" onload="console.log('tfjs laoded.')" onerror="alert('Error loading tensorflow library.')"></script>
+        
+        <script src="lib/CodeMirror.js"></script>
+        
+        <script src="Unit.js"></script>
         <script src="Grid.js"></script>
+        
         <script src="index.js"></script>
     </body>
 </html>

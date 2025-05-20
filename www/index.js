@@ -12,6 +12,9 @@ const INIT_WEIGHT_MAX = 0.1;
 const SAMPLE ='🙂'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
 const SAMPLE_HEIGHT = 0.5 * GRID_HEIGHT;
 
+const SEED_COLOR = '#FFFFFFFF';
+const SEED_SIZE = 2;
+
 
 
 //--- model:
@@ -33,8 +36,8 @@ const model = {
     }),
     fn: (state, weights) => {
         state = state.conv2d(weights[0][0], 1, 'same');
-        state = state.conv2d(weights[1][0], 1, 'same').add(weights[1][1]).relu();
-        state = state.conv2d(weights[2][0], 1, 'same').add(weights[2][1]).tanh();
+        state = state.conv2d(weights[1][0], 1, 'same').relu();
+        state = state.conv2d(weights[2][0], 1, 'same').tanh();
         return state;
     }
 };
@@ -59,16 +62,44 @@ targetCtx.fillStyle = '#000000FF';
 targetCtx.translate((GRID_WIDTH) / 2, (GRID_HEIGHT) / 2);
 targetCtx.fillText(SAMPLE, -0.5 * sampleMeasurements.width, 0.5 * (SAMPLE_HEIGHT - sampleMeasurements.fontBoundingBoxDescent));
 
+const paintCtx = document.createElement('canvas').getContext('2d');
+paintCtx.canvas.width = GRID_WIDTH;
+paintCtx.canvas.height = GRID_HEIGHT;
+const genSeedState = () => {
+    paintCtx.clearRect(0, 0, GRID_WIDTH, GRID_HEIGHT);
+    paintCtx.fillStyle = SEED_COLOR;
+    paintCtx.fillRect((GRID_WIDTH - SEED_SIZE) / 2, (GRID_HEIGHT - SEED_SIZE) / 2, SEED_SIZE, SEED_SIZE);
+    return tf.tidy(() => {
+        const seedImgTensor = tf.browser.fromPixels(paintCtx.canvas, 4).cast('float32').div(255.0);
+        const seedAlpha = seedImgTensor.slice([ 0, 0, 3 ], [ -1, -1, 1 ]);
+        return seedImgTensor.concat(seedAlpha.tile([ 1, 1, GRID_DEPTH - 4 ]), 2).expandDims(0);
+    });
+}
 
 
 //--- grid:
 
 const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH, model);
-grid.targetImgTensor = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0);
+const seedState = genSeedState();
+const targetState = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0).expandDims(0);
 
-let brushColor = grid.seedColor;
-let brushSize = grid.seedSize;
+let brushColor = SEED_COLOR;
+let brushSize = SEED_SIZE;
+let renderOption = 0;
 
+const render = () => {
+    if (renderOption === 0) {
+        grid.render(gridCtx);
+    } else {
+        grid.renderLayer(gridCtx, renderOption - 1);
+    }
+}
+const epoch = () => {
+    const epochLength = this.minEpochLength + Math.round((Math.random() * (this.maxEpochLength - this.minEpochLength)));
+    for (let i = 0; i < 8; ++i) {
+        grid.epoch(seedState, targetState, epochLength);
+    }
+}
 
 
 //--- loop:
@@ -89,13 +120,11 @@ const onFrame = time => {
     }
     ++frameCount;
     if (isLearning) {
-        for (let i = 0; i < 8; ++i) {
-            grid.epoch();
-        }
+        epoch();
     } else {
         grid.cycle();
     }
-    grid.render(gridCtx);
+    render();
     if (isPaused) {
         console.log('paused');
     } else {
@@ -109,7 +138,7 @@ const onFrame = time => {
 
 const cls = () => {
     grid.clear();
-    grid.render(gridCtx);
+    render();
 };
 const run = () => {
     if (isPaused) {
@@ -128,6 +157,9 @@ const step = () => {
 const toggleMode = (btnEl) => {
     isLearning = !isLearning;
     btnEl.innerText = isLearning ? 'eval' : 'learn';
+};
+const addSample = () => {
+    
 };
 
 const saveToFile = async () => {
@@ -160,12 +192,27 @@ const loadFromFile = () => {
     fileInputEl.click();
 };
 
+gridCanvas.onwheel = (event) => {
+    if (event.deltaY > 0) {
+        ++renderOption;
+    } else if (event.deltaY < 0) {
+        --renderOption;
+    }
+    if (renderOption > grid.depth) {
+        renderOption = 0;
+    } else if (renderOption < 0) {
+        renderOption = grid.depth;
+    }
+    render();
+    console.log('renderOption', renderOption);
+}
 gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
     if (event.buttons & 1 === 1) {
         const x = Math.floor((event.offsetX * GRID_WIDTH) / gridCanvas.offsetWidth);
         const y = Math.floor((event.offsetY * GRID_HEIGHT) / gridCanvas.offsetHeight);
         grid.paint(x, y, brushSize, brushColor);
     }
+    render();
 };
 targetCanvas.onmousedown = (event) => {
     const x = Math.floor((event.offsetX * GRID_WIDTH) / targetCanvas.offsetWidth);
