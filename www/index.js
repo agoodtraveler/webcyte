@@ -22,25 +22,22 @@ const EPOCH_LENGTH_MAX = 128;
 
 //--- model:
 
-const LAYER_SHAPES = [
-    [ 3, 3, GRID_DEPTH, GRID_DEPTH * INPUT_CHANNEL_MULTIPLIER ],
-    [ 1, 1, GRID_DEPTH * INPUT_CHANNEL_MULTIPLIER, DENSE_LAYER_SIZE ],
-    [ 1, 1, DENSE_LAYER_SIZE, GRID_DEPTH ]
-];
+const sobelX = tf.tensor([ [ -1, 0, 1], [ -2, 0, 2 ], [ -1, 0, 1 ] ]).expandDims(2).tile([ 1, 1, GRID_DEPTH ]).expandDims(3);
+const sobelY = tf.tensor([ [ -1, -2, -1], [ 0, 0, 0 ], [ 1, 2, 1 ] ]).expandDims(2).tile([ 1, 1, GRID_DEPTH ]).expandDims(3);
 
 const model = {
     cellFiringRate: 0.5,
     liveThreshold: 0.1,
-    weights: LAYER_SHAPES.map((currShape) => {
-        const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
-        const bias = tf.variable(tf.zeros([ currShape[3] ]));
-        return [ kernel, bias ];
-    }),
+    weights: [ 
+        tf.variable(tf.randomUniform([ 1, 1, GRID_DEPTH * 3,    DENSE_LAYER_SIZE ], INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32')),
+        tf.variable(tf.randomUniform([ 1, 1, DENSE_LAYER_SIZE,  GRID_DEPTH ], INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'))
+    ],
     fn: (state, weights) => {
-        state = state.conv2d(weights[0][0], 1, 'same');
-        state = state.conv2d(weights[1][0], 1, 'same').relu();
-        state = state.conv2d(weights[2][0], 1, 'same').tanh();
-        return state;
+        const xGrad = state.depthwiseConv2d(sobelX, 1, 'same');
+        const yGrad = state.depthwiseConv2d(sobelY, 1, 'same');
+        state = tf.concat([ xGrad, yGrad, state ], 3);
+        state = state.conv2d(weights[0], 1, 'same').relu();
+        return state.conv2d(weights[1], 1, 'same').tanh();
     }
 };
 
@@ -97,16 +94,16 @@ const render = () => {
     }
 }
 
-const ATTRACTOR_SWITCH_PERIOD = 64;
-const ATTRACTOR_BATCH_MAX_COUNT = 4;
-const ATTRACTOR_MAX_OVERRUN = EPOCH_LENGTH_MAX * 2;
+const ATTRACTOR_SWITCH_PERIOD = 32;
+const ATTRACTOR_BATCH_MAX_COUNT = 2;
+const ATTRACTOR_MAX_OVERRUN = EPOCH_LENGTH_MAX * 8;
 const ATTRACTOR_COST_THRESHOLD = 0.02
 let attractorSeedBatch = null;
 let attractorTargetBatch = null;
 let epochCount = 0;
 const postEpoch = (cost) => {
     let overrunLength = 0;
-    if (epochCount != 0 && cost < ATTRACTOR_COST_THRESHOLD / 3 && epochCount % ATTRACTOR_SWITCH_PERIOD === 0) {
+    if (epochCount != 0 && cost < ATTRACTOR_COST_THRESHOLD / 5 && epochCount % ATTRACTOR_SWITCH_PERIOD === 0) {
         tf.tidy(() => {
             while(cost < ATTRACTOR_COST_THRESHOLD && overrunLength < ATTRACTOR_MAX_OVERRUN) {
                 grid.cycle();
