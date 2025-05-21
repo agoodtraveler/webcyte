@@ -1,7 +1,4 @@
 class Grid {
-    minEpochLength = 64;
-    maxEpochLength = 128;
-
     width = -1;
     height = -1;
     depth = -1;
@@ -75,14 +72,15 @@ class Grid {
         this.paintCtx.clearRect(0, 0, this.width, this.height);
         this.paintCtx.fillStyle = color;
         this.paintCtx.fillRect(x - (size / 2), y - (size / 2), size, size);
-        tf.tidy(() => {
+        const nextState = tf.tidy(() => {
             const seedTensor = tf.browser.fromPixels(this.paintCtx.canvas, 4).cast('float32').div(255.0);
             const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ this.height, this.width, 1 ]);
             const notSeedMask = seedAlpha.less(0.5).cast('float32');
             const seedState = seedTensor.concat(seedAlpha.tile([ 1, 1, this.depth - 4 ]), 2).expandDims(0);
-            this.state = this.state.mul(notSeedMask).add(seedState);
-            tf.keep(this.state);
+            return this.state.mul(notSeedMask).add(seedState);
         });
+        tf.dispose(this.state);
+        this.state = nextState;
     }
     cycle() {
         const thresholdOp = tf.customGrad((tensor, save) => {
@@ -96,32 +94,28 @@ class Grid {
                 }
             };
         });
-        tf.tidy(() => {
+        const nextState = tf.tidy(() => {
             const alpha = this.state.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
             const liveMask = thresholdOp(tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ])); // tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
             const activeMask = tf.randomUniform([1, this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(3);
-            // this.stateBatch = tf.concat([
-            //     this.stateBatch.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 3 ]),
-            //     alpha.sub(this.model.decayRate).clipByValue(0, 1),
-            //     this.stateBatch.slice([ 0, 0, 0, 4 ], [ -1, -1, -1, this.depth - 4 ])
-            // ], 3);
-            this.state = this.state.add(this.model.fn(this.state.mul(liveMask), this.model.weights).mul(activeMask));
-            tf.keep(this.state);
+            return this.state.add(this.model.fn(this.state.mul(liveMask), this.model.weights).mul(activeMask));
         });
+        tf.dispose(this.state);
+        this.state = nextState;
     }
 
-    #epochCount = 0;
     epoch(seedState, targetState, epochLength) {
-        const cost = this.optimizer.minimize(() => tf.tidy(() => {
-            this.state = seedState;
+        const costTensor = this.optimizer.minimize(() => tf.tidy(() => {
+            tf.dispose(this.state);
+            this.state = seedState.clone();
             for (let i = 0; i < epochLength; ++i) {
                 this.cycle();
             }
-            tf.keep(seedState);
-            tf.keep(targetState);
             tf.keep(this.state);
             return tf.losses.meanSquaredError(targetState, this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 4 ]));
         }), true);
-        console.log(`epoch ${ ++this.#epochCount }: length = ${ epochLength };  cost = ${ cost.dataSync()[0] }`);
+        const cost = costTensor.dataSync()[0];
+        tf.dispose(costTensor);
+        return cost;
     }
 }

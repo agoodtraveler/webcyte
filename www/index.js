@@ -15,6 +15,9 @@ const SAMPLE_HEIGHT = 0.5 * GRID_HEIGHT;
 const SEED_COLOR = '#FFFFFFFF';
 const SEED_SIZE = 2;
 
+const EPOCH_LENGTH_MIN = 64;
+const EPOCH_LENGTH_MAX = 128;
+
 
 
 //--- model:
@@ -28,7 +31,6 @@ const LAYER_SHAPES = [
 const model = {
     cellFiringRate: 0.5,
     liveThreshold: 0.1,
-    /*decayRate: 0.01,*/
     weights: LAYER_SHAPES.map((currShape) => {
         const kernel = tf.variable(tf.randomUniform(currShape, INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'));
         const bias = tf.variable(tf.zeros([ currShape[3] ]));
@@ -94,10 +96,64 @@ const render = () => {
         grid.renderLayer(gridCtx, renderOption - 1);
     }
 }
-const epoch = () => {
-    const epochLength = this.minEpochLength + Math.round((Math.random() * (this.maxEpochLength - this.minEpochLength)));
+
+const ATTRACTOR_SWITCH_PERIOD = 64;
+const ATTRACTOR_BATCH_MAX_COUNT = 4;
+const ATTRACTOR_MAX_OVERRUN = EPOCH_LENGTH_MAX * 2;
+const ATTRACTOR_COST_THRESHOLD = 0.02
+let attractorSeedBatch = null;
+let attractorTargetBatch = null;
+let epochCount = 0;
+const postEpoch = (cost) => {
+    let overrunLength = 0;
+    if (epochCount != 0 && cost < ATTRACTOR_COST_THRESHOLD / 3 && epochCount % ATTRACTOR_SWITCH_PERIOD === 0) {
+        tf.tidy(() => {
+            while(cost < ATTRACTOR_COST_THRESHOLD && overrunLength < ATTRACTOR_MAX_OVERRUN) {
+                grid.cycle();
+                cost = tf.losses.meanSquaredError(targetState, grid.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 4 ])).dataSync()[0];
+                ++overrunLength;
+            }
+            if (cost >= ATTRACTOR_COST_THRESHOLD) {
+                const [ sampleCount ] = attractorSeedBatch?.shape || [ 0 ];
+                if (sampleCount >= ATTRACTOR_BATCH_MAX_COUNT) {
+                    const prev = attractorSeedBatch;
+                    attractorSeedBatch = attractorSeedBatch.slice([ 1, 0, 0, 0 ], [ sampleCount - 1, -1, -1, -1 ]);
+                    tf.dispose(prev);
+                } else {
+                    if (attractorTargetBatch === null) {
+                        attractorTargetBatch = targetState.clone();
+                    } else {
+                        const prev = attractorTargetBatch;
+                        attractorTargetBatch = attractorTargetBatch.concat(targetState, 0);
+                        tf.dispose(prev);
+                    }
+                }
+                if (attractorSeedBatch === null) {
+                    attractorSeedBatch = grid.state.clone();
+                } else {
+                    const prev = attractorSeedBatch;
+                    attractorSeedBatch = attractorSeedBatch.concat(grid.state, 0);
+                    tf.dispose(prev);
+                }
+                tf.keep(attractorSeedBatch);
+                tf.keep(attractorTargetBatch);
+                console.log('added sample');
+            }
+            console.log('post epoch', overrunLength);
+        });
+    }
+}
+const learn = () => {
     for (let i = 0; i < 8; ++i) {
-        grid.epoch(seedState, targetState, epochLength);
+        const epochLength = EPOCH_LENGTH_MIN + Math.round((Math.random() * (EPOCH_LENGTH_MAX - EPOCH_LENGTH_MIN)));
+        const currCost = grid.epoch(seedState, targetState, epochLength);
+        console.log(`epoch ${ epochCount }: length = ${ epochLength };  cost = ${ currCost }`);
+        postEpoch(currCost);
+        if (attractorSeedBatch != null) {
+            const currCost = grid.epoch(attractorSeedBatch, attractorTargetBatch, Math.round(epochLength / 2));
+            console.log(`attractor epoch ${ epochCount }: length = ${ epochLength };  cost = ${ currCost }`);
+        }
+        ++epochCount;
     }
 }
 
@@ -120,7 +176,7 @@ const onFrame = time => {
     }
     ++frameCount;
     if (isLearning) {
-        epoch();
+        learn();
     } else {
         grid.cycle();
     }
@@ -157,9 +213,6 @@ const step = () => {
 const toggleMode = (btnEl) => {
     isLearning = !isLearning;
     btnEl.innerText = isLearning ? 'eval' : 'learn';
-};
-const addSample = () => {
-    
 };
 
 const saveToFile = async () => {
