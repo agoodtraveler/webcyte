@@ -7,18 +7,6 @@
         <link rel="stylesheet" href="index.css">
     </head>
     <body>
-        
-        <span class="header">
-            <h1>webcyte</h1>
-            <span>
-                <button onclick="saveToFile()">save</button>
-                <span class="divider">|</span>
-                <button onclick="loadFromFile()">load</button>
-            </span>
-        </span>
-        <hr>
-        <span class="tagline">Neural Cellular Automata Playground</span>
-        
         <noscript>
             <div id="noscript">
                 <strong>ERROR!</strong>
@@ -26,30 +14,32 @@
                 <p>(webcyte requires JavaScript to function)</p>
             </div>
         </noscript>
+        
+        <span class="header">
+            <span>
+                <button onclick="loadFromFile()">
+                    load
+                </button>
+                <span class="spacer"></span>
+                <button onclick="saveToFile()">
+                    save
+                </button>
+            </span>
+            <span class="title">webcyte</span>
+        </span>
+        <div id="contents">
 
-        <div id="info"></div>
-        
-        <div id="app" class="column">
-            
-            <p class="row">
-                <canvas id="targetCanvas"></canvas>
-            </p>
-            
-            <p class="row">
-                <canvas id="gridCanvas"></canvas>
-                <button onclick="cls()">cls</button>
-                <button onclick="run()">run</button>
-                <button onclick="step()">step</button>
-                <button onclick="toggleMode(this)">learn</button>
-            </p>
-        
         </div>
 
 
 
+
         <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js" onload="console.log('tfjs laoded.')" onerror="alert('Error loading tensorflow library.')"></script>
-        <script src="Grid.js"></script>
         
+        <script src="lib/CodeMirror.js"></script>
+
+        <script src="Unit.js"></script>
+        <script src="Grid.js"></script>
         <script src="index.js"></script>
     </body>
 </html>

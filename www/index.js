@@ -1,86 +1,186 @@
 const DEV_MODE = true;
 
-const GRID_WIDTH = 48;
-const GRID_HEIGHT = GRID_WIDTH;
-const GRID_DEPTH = 16;
+const fnToCode = (fn) => {
+    const fnStr = fn.toString();
+    const startIndex = fnStr.indexOf('{');
+    const endIndex = fnStr.lastIndexOf('}');
+    if (startIndex < 0 || endIndex < 0) throw new Error('assert');
+    return fnStr.substring(startIndex + 1, endIndex).trim();
+}
 
-const INPUT_CHANNEL_MULTIPLIER = 1;
-const DENSE_LAYER_SIZE = 128;
-const INIT_WEIGHT_MIN = -0.1;
-const INIT_WEIGHT_MAX = 0.1;
+const DEFAULT_INIT = fnToCode((console, params, weights, ui) => {
+params.dense_layer_size = 128;
+params.weight_init_min = -0.1;
+params.weight_init_max = 0.1;
+params.epoch_length_min = 64;
+params.epoch_length_max = 96;
+params.cell_firing_rate = 0.5;
+params.live_threshold = 0.1;
+params.grid_width = 48;
+params.grid_height = params.grid_width;
+params.grid_depth = 16;
+params.sample = '🙂'; // '💾'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
+params.sample_height = 0.5 * params.grid_height;
+params.seed_color = '#FFFFFFFF';
+params.seed_size = 2;
 
-const SAMPLE ='🙂'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
-const SAMPLE_HEIGHT = 0.5 * GRID_HEIGHT;
+weights.sobel_x = tf.tidy(() => tf.tensor([ [ -1, 0, 1], [ -2, 0, 2 ], [ -1, 0, 1 ] ]).expandDims(2).tile([ 1, 1, params.grid_depth ]).expandDims(3));
+weights.sobel_y = tf.tidy(() => tf.tensor([ [ -1, -2, -1], [ 0, 0, 0 ], [ 1, 2, 1 ] ]).expandDims(2).tile([ 1, 1, params.grid_depth ]).expandDims(3));
+weights.dense = tf.tidy(() => tf.variable(tf.randomUniform([ 1, 1, params.grid_depth * 3, params.dense_layer_size ], params.weight_init_min, params.weight_init_max, 'float32')))
+weights.output = tf.tidy(() => tf.variable(tf.randomUniform([ 1, 1, params.dense_layer_size,  params.grid_depth ], params.weight_init_min, params.weight_init_max, 'float32')))
 
-const SEED_COLOR = '#FFFFFFFF';
-const SEED_SIZE = 2;
-
-const EPOCH_LENGTH_MIN = 64;
-const EPOCH_LENGTH_MAX = 128;
-
-
-
-//--- model:
-
-const sobelX = tf.tensor([ [ -1, 0, 1], [ -2, 0, 2 ], [ -1, 0, 1 ] ]).expandDims(2).tile([ 1, 1, GRID_DEPTH ]).expandDims(3);
-const sobelY = tf.tensor([ [ -1, -2, -1], [ 0, 0, 0 ], [ 1, 2, 1 ] ]).expandDims(2).tile([ 1, 1, GRID_DEPTH ]).expandDims(3);
-
-const model = {
-    cellFiringRate: 0.5,
-    liveThreshold: 0.1,
-    weights: [ 
-        tf.variable(tf.randomUniform([ 1, 1, GRID_DEPTH * 3,    DENSE_LAYER_SIZE ], INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32')),
-        tf.variable(tf.randomUniform([ 1, 1, DENSE_LAYER_SIZE,  GRID_DEPTH ], INIT_WEIGHT_MIN, INIT_WEIGHT_MAX, 'float32'))
-    ],
-    fn: (state, weights) => {
-        const xGrad = state.depthwiseConv2d(sobelX, 1, 'same');
-        const yGrad = state.depthwiseConv2d(sobelY, 1, 'same');
-        state = tf.concat([ xGrad, yGrad, state ], 3);
-        state = state.conv2d(weights[0], 1, 'same').relu();
-        return state.conv2d(weights[1], 1, 'same').tanh();
-    }
-};
-
-
-
-//--- ui:
-
-const gridCanvas = document.getElementById('gridCanvas');
-gridCanvas.width = GRID_WIDTH;
-gridCanvas.height = GRID_HEIGHT;
+ui.gridCanvas = document.createElement('canvas');
+ui.gridCanvas.width = params.grid_width;
+ui.gridCanvas.height = params.grid_height;
 const gridCtx = gridCanvas.getContext('2d');
 
-const targetCanvas = document.getElementById('targetCanvas');
-targetCanvas.width = GRID_WIDTH;
-targetCanvas.height = GRID_HEIGHT;
+ui.targetCanvas = document.createElement('canvas');
+ui.targetCanvas.width = params.grid_width;
+ui.targetCanvas.height = params.grid_height;
 const targetCtx = targetCanvas.getContext('2d');
-targetCtx.font = `${ SAMPLE_HEIGHT }px monospace`;
-let sampleMeasurements = targetCtx.measureText(SAMPLE);
-targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+targetCtx.font = `${ params.sample_height }px monospace`;
+const sampleMeasurements = targetCtx.measureText(params.sample);
+targetCtx.clearRect(0, 0, ui.targetCanvas.width, ui.targetCanvas.height);
 targetCtx.fillStyle = '#000000FF';
-targetCtx.translate((GRID_WIDTH) / 2, (GRID_HEIGHT) / 2);
-targetCtx.fillText(SAMPLE, -0.5 * sampleMeasurements.width, 0.5 * (SAMPLE_HEIGHT - sampleMeasurements.fontBoundingBoxDescent));
+targetCtx.translate((params.grid_width) / 2, (params.grid_height) / 2);
+targetCtx.fillText(params.sample, -0.5 * sampleMeasurements.width, 0.5 * (params.sample_height - sampleMeasurements.fontBoundingBoxDescent));
 
 const paintCtx = document.createElement('canvas').getContext('2d');
-paintCtx.canvas.width = GRID_WIDTH;
-paintCtx.canvas.height = GRID_HEIGHT;
+paintCtx.canvas.width = params.grid_width;
+paintCtx.canvas.height = params.grid_height;
 const genSeedState = () => {
-    paintCtx.clearRect(0, 0, GRID_WIDTH, GRID_HEIGHT);
-    paintCtx.fillStyle = SEED_COLOR;
-    paintCtx.fillRect((GRID_WIDTH - SEED_SIZE) / 2, (GRID_HEIGHT - SEED_SIZE) / 2, SEED_SIZE, SEED_SIZE);
+    paintCtx.clearRect(0, 0, paintCtx.canvas.width, paintCtx.canvas.height);
+    paintCtx.fillStyle = params.seed_color;
+    paintCtx.fillRect((paintCtx.canvas.width - params.seed_size) / 2, (paintCtx.canvas.height - params.seed_size) / 2, params.seed_size, params.seed_size);
     return tf.tidy(() => {
         const seedImgTensor = tf.browser.fromPixels(paintCtx.canvas, 4).cast('float32').div(255.0);
         const seedAlpha = seedImgTensor.slice([ 0, 0, 3 ], [ -1, -1, 1 ]);
-        return seedImgTensor.concat(seedAlpha.tile([ 1, 1, GRID_DEPTH - 4 ]), 2).expandDims(0);
+        return seedImgTensor.concat(seedAlpha.tile([ 1, 1, params.grid_depth - 4 ]), 2).expandDims(0);
     });
 }
+
+console.log('Hello World!');
+});
+
+const DEFAULT_COMPUTE = fnToCode((console, params, weights, ui) => {
+const xGrad = state.depthwiseConv2d(weights.sobel_x, 1, 'same');
+const yGrad = state.depthwiseConv2d(weights.sobel_y, 1, 'same');
+state = tf.concat([ xGrad, yGrad, state ], 3);
+state = state.conv2d(weights.dense, 1, 'same').relu();
+return state.conv2d(weights.output, 1, 'same').tanh();
+});
+
+
+
+const globals = { params: {}, weights: {} };
+const init = new Unit('init', DEFAULT_INIT, globals);
+const compute = new Unit('compute', DEFAULT_COMPUTE, globals);
+
+const serialize = async () => {
+    const project = {
+        globals: {
+            params: {},
+            weights: {}
+        },
+        init: init.code,
+        compute: compute.code
+    };
+    for (const currName in globals.params) {
+        project.globals.params[currName] = globals.params[currName];
+    }
+    for (const currName in globals.weights) {
+        project.globals.weights[currName] = {
+            isVariable: globals.weights[currName] instanceof tf.Variable,
+            value: await globals.weights[currName].array()
+        };
+    }
+    return JSON.stringify(project);
+}
+const deserialize = (jsonStr) => {
+    const project = JSON.parse(jsonStr);
+    for (const currName in globals.weights) {
+        tf.dispose(globals.weights[currName]);
+        delete globals.weights[currName];
+    }
+    for (const currName in project.globals.weights) {
+        const currWeights = project.globals.weights[currName];
+        const tensor = tf.tensor(currWeights.value);
+        globals.weights[currName] = currWeights.isVariable ? tf.variable(tensor) : tensor;
+    }
+    for (const currName in project.globals.params) {
+        globals.params[currName] = project.globals.params[currName];
+    }
+    init.code = project.init;
+    compute.code = project.compute;
+}
+
+const contentsDiv = document.getElementById('contents');
+contentsDiv.onscroll = () => {
+    const contentsRect = contentsDiv.getBoundingClientRect();
+    contentsDiv.querySelectorAll('.Unit').forEach(currUnitDiv => {
+        const unitRect = currUnitDiv.getBoundingClientRect();
+        if (unitRect.y < contentsRect.height && unitRect.y + unitRect.height > 0) {
+            const controlsDiv = currUnitDiv.querySelector('.controls');
+            const controlsRect = controlsDiv.getBoundingClientRect();
+            if (unitRect.y >= contentsRect.y) {
+                controlsDiv.style.transform = 'translateY(0px)';
+            } else {
+                controlsDiv.style.transform = `translateY(${ Math.min(contentsRect.y - unitRect.y, unitRect.height - controlsRect.height) }px)`;
+            }
+        }
+    });
+}
+
+window.onload = () => {
+    
+    contentsDiv.appendChild(init.div);
+    contentsDiv.appendChild(compute.div);
+}
+
+
+
+const saveToFile = async () => {
+    const url = URL.createObjectURL(new Blob([ await serialize() ], { type: 'application/json' }));
+    const link = document.body.appendChild(document.createElement('a'));
+    link.href = url;
+    link.download = 'project.json';
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+const loadFromFile = () => {
+    const fileInputEl = document.body.appendChild(document.createElement('input'));
+    fileInputEl.type = 'file';
+    fileInputEl.accept = '.json';
+    fileInputEl.style.display = 'none';
+    fileInputEl.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+        try {
+            deserialize(await file.text());
+            console.log('Model loaded.');
+        } catch (error) {
+            console.error('Error loading model:', error);
+        }
+        document.body.removeChild(fileInputEl);
+    });
+    fileInputEl.click();
+};
+
+throw('qq');
+
+//--- ui:
+
+
 
 
 //--- grid:
 
 const grid = new Grid(GRID_WIDTH, GRID_HEIGHT, GRID_DEPTH, model);
 const seedState = genSeedState();
-const targetState = tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0).expandDims(0);
+const targetState = tf.tidy(() => tf.browser.fromPixels(targetCanvas, 4).cast('float32').div(255.0).expandDims(0));
 
 let brushColor = SEED_COLOR;
 let brushSize = SEED_SIZE;
@@ -94,9 +194,9 @@ const render = () => {
     }
 }
 
-const ATTRACTOR_SWITCH_PERIOD = 32;
+const ATTRACTOR_SWITCH_PERIOD = 64;
 const ATTRACTOR_BATCH_MAX_COUNT = 2;
-const ATTRACTOR_MAX_OVERRUN = EPOCH_LENGTH_MAX * 8;
+const ATTRACTOR_MAX_OVERRUN = EPOCH_LENGTH_MAX * 16;
 const ATTRACTOR_COST_THRESHOLD = 0.02
 let attractorSeedBatch = null;
 let attractorTargetBatch = null;
@@ -146,8 +246,8 @@ const learn = () => {
         const currCost = grid.epoch(seedState, targetState, epochLength);
         console.log(`epoch ${ epochCount }: length = ${ epochLength };  cost = ${ currCost }`);
         postEpoch(currCost);
-        if (attractorSeedBatch != null) {
-            const currCost = grid.epoch(attractorSeedBatch, attractorTargetBatch, Math.round(epochLength / 2));
+        if (attractorSeedBatch != null && epochCount % 2 === 0) {
+            const currCost = grid.epoch(attractorSeedBatch, attractorTargetBatch, Math.round(epochLength));
             console.log(`attractor epoch ${ epochCount }: length = ${ epochLength };  cost = ${ currCost }`);
         }
         ++epochCount;
@@ -212,35 +312,7 @@ const toggleMode = (btnEl) => {
     btnEl.innerText = isLearning ? 'eval' : 'learn';
 };
 
-const saveToFile = async () => {
-    const url = URL.createObjectURL(new Blob([ await grid.serializeModel() ], { type: 'application/json' }));
-    const link = document.body.appendChild(document.createElement('a'));
-    link.href = url;
-    link.download = 'weights.json';
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-};
-const loadFromFile = () => {
-    const fileInputEl = document.body.appendChild(document.createElement('input'));
-    fileInputEl.type = 'file';
-    fileInputEl.accept = '.json';
-    fileInputEl.style.display = 'none';
-    fileInputEl.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-            return;
-        }
-        try {
-            grid.deserializeModel(await file.text());
-            console.log('Model loaded.');
-        } catch (error) {
-            console.error('Error loading model:', error);
-        }
-        document.body.removeChild(fileInputEl);
-    });
-    fileInputEl.click();
-};
+
 
 gridCanvas.onwheel = (event) => {
     if (event.deltaY > 0) {
