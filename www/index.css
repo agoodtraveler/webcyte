@@ -33,12 +33,22 @@
 } */
 :root {
     --bgColor: 		#090a0d;
+    --logoColor: #869aa6;
     --textColor: 	#869aa6;
     --headerColor: #181d26;  
     --buttonBGColor: 		#2c3540;
-    --buttonTextColor: #869aa6;
+    --buttonTextColor: #c1ceD9;
     --controlsColor: #181d26;
 }
+/* :root {
+    --bgColor: 		#182126;
+    --textColor: 	#8d9ca6;
+    --headerColor: #465259;  
+    --buttonBGColor: 		#8d9ca6;
+    --buttonTextColor: #c1ced9;
+    --controlsColor: #8c6151;
+} */
+
 
 body {
     position: absolute;
@@ -74,12 +84,17 @@ canvas {
     padding-bottom: 0.25em;
     background-color: var(--headerColor);
 }
+.header .title {
+    color: var(--logoColor);
+}
 .spacer {
     padding-left: 0.5ch;
     padding-right: 0.5ch;
 }
 
 #contents {
+    display: flex;
+    flex-flow: column;
     position: absolute;
     top: 2.1em;
     bottom: 0px;
@@ -93,6 +108,7 @@ canvas {
 .Unit {
     display: flex;
     flex-flow: row nowrap;
+    margin-bottom: 2em;
 }
 .Unit .panel {
     /* background-color: #000; */
@@ -125,8 +141,6 @@ canvas {
     flex-flow: column;
     /* resize: both;
     overflow-y: auto; */
-    background-color: var(--bgColor);
-    /* border: 1pt solid blue; */
 }
 
 
@@ -134,6 +148,7 @@ canvas {
 .cm-editor {
     flex: 1;
     background-color: transparent;
+    font-size: 11pt;
 }
 .cm-editor .cm-gutters {
     background-color: transparent;

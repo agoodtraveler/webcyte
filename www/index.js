@@ -58,8 +58,6 @@ const genSeedState = () => {
         return seedImgTensor.concat(seedAlpha.tile([ 1, 1, params.grid_depth - 4 ]), 2).expandDims(0);
     });
 }
-
-console.log('Hello World!');
 });
 
 const DEFAULT_COMPUTE = fnToCode((console, params, weights, ui) => {
@@ -73,46 +71,82 @@ return state.conv2d(weights.output, 1, 'same').tanh();
 
 
 const globals = { params: {}, weights: {} };
-const init = new Unit('init', DEFAULT_INIT, globals);
-const compute = new Unit('compute', DEFAULT_COMPUTE, globals);
+const units = [];
+
+const runUnit = (unit) => {
+    try {
+        const fn = new Function('console', 'params', 'weights', 'ui', unit.code);
+        const ui = {};
+        fn(unit.console, globals.params, globals.weights, ui);
+        for (const currName in ui) {
+            console.log('ui', ui[currName]);
+        }
+    } catch (error) {
+        const message = error.message;
+        const stackLines = error.stack?.split('\n');
+        console.log(message, stackLines[0]);
+    }
+}
+const delUnit = (unit) => {
+    unit.div.parentElement.removeChild(unit.div);
+    units.splice(units.indexOf(unit), 1);
+    units.forEach((currUnit, i) => currUnit.div.style.order = i);
+}
+const addUnit = (name, code, atIndex = units.length) => {
+    const unit = new Unit(name, code, runUnit, delUnit);
+    units.splice(atIndex, 0, unit);
+    units.forEach((currUnit, i) => currUnit.div.style.order = i);
+    contentsDiv.appendChild(unit.div);
+    return unit;
+}
+const clearUnits = () => {
+    units.length = 0;
+    document.querySelectorAll('.Unit').forEach(unitEl => unitEl.parentElement.removeChild(unitEl));
+}
+
 
 const serialize = async () => {
-    const project = {
+    const dst = {
         globals: {
             params: {},
             weights: {}
         },
-        init: init.code,
-        compute: compute.code
+        units: units.map((currUnit) => ({ name: currUnit.nameDiv.innerText, code: currUnit.code })),
     };
     for (const currName in globals.params) {
-        project.globals.params[currName] = globals.params[currName];
+        dst.globals.params[currName] = globals.params[currName];
     }
     for (const currName in globals.weights) {
-        project.globals.weights[currName] = {
+        dst.globals.weights[currName] = {
             isVariable: globals.weights[currName] instanceof tf.Variable,
             value: await globals.weights[currName].array()
         };
     }
-    return JSON.stringify(project);
+    return JSON.stringify(dst);
 }
 const deserialize = (jsonStr) => {
-    const project = JSON.parse(jsonStr);
+    const src = JSON.parse(jsonStr);
+    
     for (const currName in globals.weights) {
         tf.dispose(globals.weights[currName]);
         delete globals.weights[currName];
     }
-    for (const currName in project.globals.weights) {
-        const currWeights = project.globals.weights[currName];
+    for (const currName in src.globals.weights) {
+        const currWeights = src.globals.weights[currName];
         const tensor = tf.tensor(currWeights.value);
         globals.weights[currName] = currWeights.isVariable ? tf.variable(tensor) : tensor;
     }
-    for (const currName in project.globals.params) {
-        globals.params[currName] = project.globals.params[currName];
+
+    globals.params = {};
+    for (const currName in src.globals.params) {
+        globals.params[currName] = src.globals.params[currName];
     }
-    init.code = project.init;
-    compute.code = project.compute;
+
+    clearUnits();
+    src.units.forEach(currUnit => addUnit(currUnit.name, currUnit.code));
 }
+
+
 
 const contentsDiv = document.getElementById('contents');
 contentsDiv.onscroll = () => {
@@ -132,9 +166,8 @@ contentsDiv.onscroll = () => {
 }
 
 window.onload = () => {
-    
-    contentsDiv.appendChild(init.div);
-    contentsDiv.appendChild(compute.div);
+    addUnit('init', DEFAULT_INIT);
+    addUnit('compute', DEFAULT_COMPUTE);
 }
 
 
@@ -143,7 +176,7 @@ const saveToFile = async () => {
     const url = URL.createObjectURL(new Blob([ await serialize() ], { type: 'application/json' }));
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
-    link.download = 'project.json';
+    link.download = 'webcyte.json';
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
@@ -283,33 +316,6 @@ const onFrame = time => {
     } else {
         window.requestAnimationFrame(onFrame);
     }
-};
-
-
-
-//--- user actions:
-
-const cls = () => {
-    grid.clear();
-    render();
-};
-const run = () => {
-    if (isPaused) {
-        isPaused = false;
-        window.requestAnimationFrame(onFrame);
-        console.log('run');
-    }
-};
-const step = () => {
-    if (isPaused) {
-        window.requestAnimationFrame(onFrame);
-    } else {
-        isPaused = true;
-    }
-};
-const toggleMode = (btnEl) => {
-    isLearning = !isLearning;
-    btnEl.innerText = isLearning ? 'eval' : 'learn';
 };
 
 

@@ -13,9 +13,10 @@ const makeBtn = (title, onClick = () => console.log('onClick', title)) => {
 
 class Unit {
     div = null;
+    nameDiv = null;
     editor = null;
     console = null;
-    constructor(name, code, globals) {
+    constructor(name, code, runFn, delFn) {
         this.console = {};
         this.console.log = console.log;
 
@@ -54,45 +55,29 @@ class Unit {
                 options
             };
         }
-        const run = () => {
-            try {
-                const fn = new Function('console', 'params', 'weights', 'ui', this.code);
-                const ui = {};
-                fn(this.console, globals.params, globals.weights, ui);
-                for (const currName in ui) {
-                    this.console.log('ui', ui[currName]);
-                }
-            } catch (error) {
-                const message = error.message;
-                const stackLines = error.stack?.split('\n');
-                console.log(message, stackLines[0]);
-                //const [ _, line, column ] = stackLines?.[0]?.match(/\> eval:(\d+):(\d+)/) || [ -1, -1, -1 ];
-                //console.log(`message = '${ message }'; line = '${ line }'; column = '${ column }'`);
-            }
-        }
 
         this.div = makeDiv('Unit');
-
         const panelDiv = this.div.appendChild(makeDiv('panel'));
         const controlsDiv = panelDiv.appendChild(makeDiv('controls'));
-        const titleDiv = controlsDiv.appendChild(makeDiv('title'));
-        titleDiv.setAttribute('spellcheck', false);
-        titleDiv.setAttribute('contenteditable', true);
-        titleDiv.innerText = name;
-        titleDiv.onkeydown = (event) => {
+        this.nameDiv = controlsDiv.appendChild(makeDiv('title'));
+        this.nameDiv.setAttribute('spellcheck', false);
+        this.nameDiv.setAttribute('contenteditable', true);
+        this.nameDiv.innerText = name;
+        this.nameDiv.onkeydown = (event) => {
             if (event.keyCode === 13) {
                 event.preventDefault();
             }
         }
-        const runBtn = controlsDiv.appendChild(makeBtn('▶', run));
-
+        const runBtn = controlsDiv.appendChild(makeBtn('▶', () => runFn(this)));
+        const delBtn = controlsDiv.appendChild(makeBtn('❌', () => delFn(this)));
+        delBtn.style.marginTop = '2em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
         const editorDiv = contentsDiv.appendChild(makeDiv('editor'));
         const languagePack = cm.javascript();
         this.editor = new cm.EditorView({
             extensions: [
                 cm.basicSetup,
-                cm.oneDark,
+                cmTheme,
                 cm.EditorView.lineWrapping,
                 languagePack,
                 languagePack.language.data.of({ autocomplete: onAutoComplete })
