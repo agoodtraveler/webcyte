@@ -1,53 +1,17 @@
-/* :root {
-    --bgColor: 		#00002b;
-    --textColor: 	#DDE6ED;
-    --headerColor: #210051;
-    --buttonColor: 	#320261;
-} */
-/* :root {
-    --bgColor: 		#26070C;
-    --textColor: 	#F2E3B3;
-    --headerColor: #731414;
-    --buttonColor: 	#8C1818;
-} */
-/* :root {
-    --bgColor: 		#212129;
-    --textColor: 	#9DB2BF;
-    --headerColor: #3d3e51;
-    --buttonBGColor: 		#4c5265;
-    --buttonTextColor: #DDE6ED;
-} */
-/* :root {
-    --bgColor: 		#26070c;
-    --textColor: 	#f2e383;
-    --headerColor: #8c1818;
-    --buttonBGColor: 		#590e1c;
-    --buttonTextColor: #f2e383;
-} */
-/* :root {
-    --bgColor: 		#0d0000;
-    --textColor: 	#a69897;
-    --headerColor: #400101;
-    --buttonBGColor: 		#590202;
-    --buttonTextColor: #a69897;
-} */
 :root {
     --bgColor: 		#090a0d;
     --logoColor: #869aa6;
     --textColor: 	#869aa6;
     --headerColor: #181d26;  
     --buttonBGColor: 		#2c3540;
+    --buttonHoverBGColor:  #3d4c5f;
+    --buttonActiveBGColor: #000000;
     --buttonTextColor: #c1ceD9;
     --controlsColor: #181d26;
+    --btnSize: 1.5em;
+    --btnFontSize: 12pt;
 }
-/* :root {
-    --bgColor: 		#182126;
-    --textColor: 	#8d9ca6;
-    --headerColor: #465259;  
-    --buttonBGColor: 		#8d9ca6;
-    --buttonTextColor: #c1ced9;
-    --controlsColor: #8c6151;
-} */
+
 
 
 body {
@@ -67,7 +31,19 @@ button {
     -webkit-user-select: none;
     background-color: var(--buttonBGColor);
     color: var(--buttonTextColor);
-    padding: 2pt;
+    padding: 0px;
+    padding-block: 0px;
+    border: 1pt;
+    border-radius: 2pt;
+    line-height: var(--btnSize);
+    min-width: var(--btnSize);
+    transition: background-color 0.2s;
+}
+button:hover {
+    background-color: var(--buttonHoverBGColor);
+}
+button:active {
+    background-color: var(--buttonBGColor);
 }
 canvas {
     image-rendering: pixelated;
@@ -83,6 +59,9 @@ canvas {
     padding-top: 0.25em;
     padding-bottom: 0.25em;
     background-color: var(--headerColor);
+}
+.header button {
+    padding: 2pt 8pt 2pt 8pt;
 }
 .header .title {
     color: var(--logoColor);
@@ -105,22 +84,38 @@ canvas {
 
 
 
+.insert {
+    width: 100%;
+    display: flex;
+    flex-flow: row;
+    justify-content: left;
+    padding-top: 1em;
+    padding-bottom: 1em;
+}
+.insert button {
+    font-size: var(--btnFontSize);
+    font-weight: bold;
+    margin: 2pt;
+}
+
 .Unit {
     display: flex;
     flex-flow: row nowrap;
-    margin-bottom: 2em;
 }
 .Unit .panel {
-    /* background-color: #000; */
+    margin-right: 0.5ch;
 }
 .Unit .panel .controls {
     display: flex;
     flex-flow: column;
     justify-content: start;
     padding: 4pt 2pt 4pt 2pt;
-    margin-right: 0.5ch;
     background-color: var(--controlsColor);
-    transition: trnasform 2s;
+}
+.Unit .panel .controls button {
+    font-size: var(--btnFontSize);;
+    width: 1.5em;
+    line-height: 1.5em;
 }
 .Unit .panel .controls .title {
     writing-mode: sideways-lr;

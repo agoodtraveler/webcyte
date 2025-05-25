@@ -29,23 +29,6 @@ class Grid {
         console.log('learning rate set', rate);
     }
 
-    async serializeModel() {
-        const fnStr = grid.model.fn.toString();
-        const modelJSON = JSON.stringify({ ...this.model,
-            weights: await Promise.all(this.model.weights.map(async (currLayer) => await currLayer.array())),
-            fn: fnStr.substr(fnStr.indexOf('{\n')).split('\n').slice(1).slice(0, -1).join('\n')
-        });
-        return modelJSON;
-    }
-    deserializeModel(modelJSON) {
-        const model = JSON.parse(modelJSON);
-        model.weights = model.weights.map(kernelValue => tf.variable(tf.tensor(kernelValue)));
-        model.fn = new Function('state', 'weights', model.fn);
-        this.model.weights.forEach(kernel => tf.dispose(kernel));
-        this.model = model;
-        console.log('model deserialized', model);
-    }
-
     async render(ctx) {
         const rgbaTensor = tf.tidy(() => this.state.slice([ 0, 0, 0, 0 ], [ 1, -1, -1, 4 ]).mul(255).cast('int32'));
         const rgbaArray = new Uint8ClampedArray(await rgbaTensor.data());
@@ -75,42 +58,5 @@ class Grid {
         });
         tf.dispose(this.state);
         this.state = nextState;
-    }
-    cycle() {
-        const thresholdOp = tf.customGrad((tensor, save) => {
-            save([ tensor ]);
-            return {
-                value: tensor.greater(this.model.liveThreshold).cast('float32'),
-                gradFunc: (dy, [ tensor ]) => {
-                    const sigmoid = tensor.sub(this.model.liveThreshold).mul(20).sigmoid();
-                    const sigmoidGrad = sigmoid.mul(sigmoid.neg().add(1)); // TODO: figure out why tf.grad(tensor => tensor.sub(this.model.liveThreshold).mul(10).sigmoid())(tensor) doesn't work (exception in training)
-                    return [ dy.mul(sigmoidGrad) ];
-                }
-            };
-        });
-        const nextState = tf.tidy(() => {
-            const activeMask = tf.randomUniform([ 1, this.height, this.width ]).less(this.model.cellFiringRate).cast('float32').expandDims(3);
-            const alpha = this.state.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
-            const liveMask = thresholdOp(tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ])); // tf.avgPool(alpha, [ 3, 3 ], [ 1, 1 ], 'same').sub(this.model.liveThreshold).mul(10).sigmoid();
-            const liveState = this.state.mul(liveMask);
-            return liveState.add(this.model.fn(liveState, this.model.weights).mul(activeMask));
-        });
-        tf.dispose(this.state);
-        this.state = nextState;
-    }
-
-    epoch(seedState, targetState, epochLength) {
-        const costTensor = this.optimizer.minimize(() => tf.tidy(() => {
-            tf.dispose(this.state);
-            this.state = seedState.clone();
-            for (let i = 0; i < epochLength; ++i) {
-                this.cycle();
-            }
-            tf.keep(this.state);
-            return tf.losses.meanSquaredError(targetState, this.state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 4 ]));
-        }), true);
-        const cost = costTensor.dataSync()[0];
-        tf.dispose(costTensor);
-        return cost;
     }
 }
