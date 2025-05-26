@@ -2,17 +2,34 @@ const DEV_MODE = true;
 
 
 
+const makeDiv = (className) => {
+    const div = document.createElement('div');
+    div.className = className;
+    return div;
+}
+const makeButton = (title, onClick = () => console.log('onClick', title)) => {
+    const btn = document.createElement('button');
+    btn.onclick = onClick;
+    btn.innerText = title;
+    return btn;
+}
+const makeCanvas = (width, height) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+}
+
 const globals = { params: {}, weights: {} };
 const units = [];
+const shared = {};
+const mainDiv = document.getElementById('main');
 
 const runUnit = (unit) => {
     try {
-        const fn = new Function('console', 'params', 'weights', 'ui', unit.code);
-        const ui = {};
-        fn(unit.console, globals.params, globals.weights, ui);
-        for (const currName in ui) {
-            console.log('ui', ui[currName]);
-        }
+        const fn = new Function('console', 'params', 'weights', 'shared', 'prefixDiv', 'suffixDiv', unit.code);
+        unit.clearUI;
+        fn(unit.console, globals.params, globals.weights, shared, unit.prefixDiv, unit.suffixDiv);
     } catch (error) {
         const message = error.message;
         const stackLines = error.stack?.split('\n');
@@ -29,21 +46,18 @@ const addUnit = (name, code, atIndex = units.length) => {
     const unit = new Unit(name, code, runUnit, delUnit);
     units.splice(atIndex, 0, unit);
     units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
-    contentsDiv.appendChild(unit.div);
+    mainDiv.appendChild(unit.div);
     updateInserts();
     return unit;
 }
 
 const updateInserts = () => {
-    contentsDiv.querySelectorAll('.insert').forEach(div => div.parentElement.removeChild(div));
+    mainDiv.querySelectorAll('.insert').forEach(div => div.parentElement.removeChild(div));
     for (let i = 0; i <= units.length; ++i) {
-        const div = contentsDiv.appendChild(document.createElement('div'));
-        div.className = 'insert';
+        const div = mainDiv.appendChild(makeDiv('insert'));
         const order = i * 2;
         div.style.order = order;
-        const btn = div.appendChild(document.createElement('button'));
-        btn.innerText = '+';
-        btn.onclick = () => addUnit(`UNIT ${ i }`, '// Hello World!', i);
+        const btn = div.appendChild(makeButton('+', () => addUnit(`UNIT ${ i }`, '// Hello World!', i)));
     }
 }
 
@@ -51,11 +65,9 @@ const reset = () => {
     globals.params = {};
     globals.weights = {};
     units.length = 0;
-    contentsDiv.innerHTML = '';
+    mainDiv.innerHTML = '';
     updateInserts();
 }
-
-
 
 const serialize = async () => {
     const dst = {
@@ -78,7 +90,6 @@ const serialize = async () => {
 }
 const deserialize = (jsonStr) => {
     const src = JSON.parse(jsonStr);
-    
     for (const currName in globals.weights) {
         tf.dispose(globals.weights[currName]);
         delete globals.weights[currName];
@@ -88,22 +99,19 @@ const deserialize = (jsonStr) => {
         const tensor = tf.tensor(currWeights.value);
         globals.weights[currName] = currWeights.isVariable ? tf.variable(tensor) : tensor;
     }
-
     globals.params = {};
     for (const currName in src.globals.params) {
         globals.params[currName] = src.globals.params[currName];
     }
-
     reset();
     src.units.forEach(currUnit => addUnit(currUnit.name, currUnit.code));
 }
 
 
 
-const contentsDiv = document.getElementById('contents');
-contentsDiv.onscroll = () => {
-    const contentsRect = contentsDiv.getBoundingClientRect();
-    contentsDiv.querySelectorAll('.Unit').forEach(currUnitDiv => {
+mainDiv.onscroll = () => {
+    const contentsRect = mainDiv.getBoundingClientRect();
+    mainDiv.querySelectorAll('.Unit').forEach(currUnitDiv => {
         const unitRect = currUnitDiv.getBoundingClientRect();
         if (unitRect.y < contentsRect.height && unitRect.y + unitRect.height > 0) {
             const controlsDiv = currUnitDiv.querySelector('.controls');
@@ -117,12 +125,19 @@ contentsDiv.onscroll = () => {
     });
 }
 
-window.onload = () => {
+window.onload = async () => {
+    await tf.ready();
+    if (DEV_MODE) {
+        console.log('DEV_MODE: TFJS backend, version', tf.getBackend(), tf.version.tfjs);
+    } else {
+        tf.enableProdMode();
+    }
     addUnit('params', DEFAULT_PARAMS_CODE);
     addUnit('weights', DEFAULT_WEIGHTS_CODE);
-    addUnit('compute', DEFAULT_CYCLE_CODE);
+    addUnit('target', DEFAULT_TARGET_CODE);
+    addUnit('cycle', DEFAULT_CYCLE_CODE);
     addUnit('learn', DEFAULT_LEARN_CODE);
-    addUnit('init', DEFAULT_INIT_CODE);
+    addUnit('grid', DEFAULT_GRID_CODE);
     updateInserts();
 }
 
@@ -188,49 +203,4 @@ const onFrame = time => {
     } else {
         window.requestAnimationFrame(onFrame);
     }
-};
-
-
-
-gridCanvas.onwheel = (event) => {
-    if (event.deltaY > 0) {
-        ++renderOption;
-    } else if (event.deltaY < 0) {
-        --renderOption;
-    }
-    if (renderOption > grid.depth) {
-        renderOption = 0;
-    } else if (renderOption < 0) {
-        renderOption = grid.depth;
-    }
-    render();
-    console.log('renderOption', renderOption);
 }
-gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
-    if (event.buttons & 1 === 1) {
-        const x = Math.floor((event.offsetX * GRID_WIDTH) / gridCanvas.offsetWidth);
-        const y = Math.floor((event.offsetY * GRID_HEIGHT) / gridCanvas.offsetHeight);
-        grid.paint(x, y, brushSize, brushColor);
-    }
-    render();
-};
-targetCanvas.onmousedown = (event) => {
-    const x = Math.floor((event.offsetX * GRID_WIDTH) / targetCanvas.offsetWidth);
-    const y = Math.floor((event.offsetY * GRID_HEIGHT) / targetCanvas.offsetHeight);
-    const pixel = targetCtx.getImageData(x, y, 1, 1).data;
-    brushColor = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
-};
-
-
-
-//--- init:
-
-window.onload = async () => {
-    document.getElementById('app').style.display = 'block';
-    await tf.ready();
-    if (DEV_MODE) {
-        console.log('DEV_MODE: TFJS backend, version', tf.getBackend(), tf.version.tfjs);
-    } else {
-        tf.enableProdMode();
-    }
-};

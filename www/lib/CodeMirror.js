@@ -27432,6 +27432,7 @@ var cm = (function (exports) {
   exports.HighlightStyle = HighlightStyle;
   exports.autocompletion = autocompletion;
   exports.basicSetup = basicSetup;
+  exports.indentUnit = indentUnit;
   exports.javascript = javascript;
   exports.linter = linter;
   exports.syntaxHighlighting = syntaxHighlighting;

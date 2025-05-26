@@ -1,5 +1,5 @@
 :root {
-    --bgColor: 		#090a0d;
+    --bgColor: 		#282A36;
     --logoColor: #869aa6;
     --textColor: 	#869aa6;
     --headerColor: #181d26;  
@@ -8,6 +8,7 @@
     --buttonActiveBGColor: #000000;
     --buttonTextColor: #c1ceD9;
     --controlsColor: #181d26;
+    --borderColor: #3d4c5f;
     --btnSize: 1.5em;
     --btnFontSize: 12pt;
 }
@@ -49,6 +50,8 @@ canvas {
     image-rendering: pixelated;
 }
 
+
+
 .header {
     display: flex;
     flex-flow: row wrap;
@@ -71,7 +74,9 @@ canvas {
     padding-right: 0.5ch;
 }
 
-#contents {
+
+
+#main {
     display: flex;
     flex-flow: column;
     position: absolute;
@@ -81,6 +86,71 @@ canvas {
     width: 100%;
     overflow: auto;
 }
+
+
+
+.Unit {
+    display: flex;
+    flex-flow: row nowrap;
+    margin-right: 2ch;
+}
+
+.Unit .panel {
+    margin-right: 0.5ch;
+}
+.Unit .panel .controls {
+    display: flex;
+    flex-flow: column;
+    justify-content: start;
+    padding: 2pt;
+    /* border-radius: 2pt;
+    border: 1pt solid var(--borderColor); */
+    /* background-color: var(--controlsColor); */
+}
+.Unit .panel .controls button {
+    font-size: var(--btnFontSize);;
+    width: 1.5em;
+    line-height: 1.5em;
+}
+.Unit .panel .controls .title {
+    writing-mode: sideways-lr;
+    margin-top: 1ch;
+    margin-bottom: 1ch;
+    font-weight: bold;
+    line-height: 1.5em;
+    min-height: 2ch;
+    width: 1.5em;
+    overflow: hidden;
+}
+
+.Unit .contents {
+    display: flex;
+    flex-flow: column;
+}
+
+.Unit .contents .editor {
+    display: flex;
+    flex-flow: column;
+    border-radius: 2pt;
+    border: 1pt solid var(--borderColor);
+    /* resize: both;
+    overflow-y: auto; */
+}
+.cm-editor {
+    flex: 1;
+    /* background-color: transparent; */
+    font-size: 11pt;
+}
+.cm-editor .cm-gutters {
+    background-color: transparent;
+}
+.cm-editor.cm-focused {
+    outline: none;
+}
+
+/* .Unit .contents .ui {
+    background-color: #FFFFFF;
+} */
 
 
 
@@ -96,62 +166,4 @@ canvas {
     font-size: var(--btnFontSize);
     font-weight: bold;
     margin: 2pt;
-}
-
-.Unit {
-    display: flex;
-    flex-flow: row nowrap;
-}
-.Unit .panel {
-    margin-right: 0.5ch;
-}
-.Unit .panel .controls {
-    display: flex;
-    flex-flow: column;
-    justify-content: start;
-    padding: 4pt 2pt 4pt 2pt;
-    background-color: var(--controlsColor);
-}
-.Unit .panel .controls button {
-    font-size: var(--btnFontSize);;
-    width: 1.5em;
-    line-height: 1.5em;
-}
-.Unit .panel .controls .title {
-    writing-mode: sideways-lr;
-    margin-bottom: 1ch;
-    font-weight: bold;
-    line-height: 1.5em;
-    min-height: 2ch;
-    width: 1.5em;
-    overflow: hidden;
-}
-
-.Unit .contents {
-    display: flex;
-    flex-flow: row wrap;
-}
-.Unit .contents .editor {
-    display: flex;
-    flex-flow: column;
-    /* resize: both;
-    overflow-y: auto; */
-}
-
-
-
-.cm-editor {
-    flex: 1;
-    background-color: transparent;
-    font-size: 11pt;
-}
-.cm-editor .cm-gutters {
-    background-color: transparent;
-}
-.cm-editor.cm-focused {
-    outline: none;
-}
-.cm-editor .cm-error {
-    background-color: rgba(255, 0, 0, 0.2);
-    text-decoration: underline red;
 }

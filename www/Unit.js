@@ -1,18 +1,7 @@
-const makeDiv = (className) => {
-    const div = document.createElement('div');
-    div.className = className;
-    return div;
-}
-const makeBtn = (title, onClick = () => console.log('onClick', title)) => {
-    const btn = document.createElement('button');
-    btn.onclick = onClick;
-    btn.innerText = title;
-    return btn;
-}
-
-
 class Unit {
     div = null;
+    prefixDiv = null;
+    suffixDiv = null;
     nameDiv = null;
     editor = null;
     console = null;
@@ -59,19 +48,30 @@ class Unit {
         this.div = makeDiv('Unit');
         const panelDiv = this.div.appendChild(makeDiv('panel'));
         const controlsDiv = panelDiv.appendChild(makeDiv('controls'));
+        const runBtn = controlsDiv.appendChild(makeButton('▶', () => runFn(this)));
         this.nameDiv = controlsDiv.appendChild(makeDiv('title'));
         this.nameDiv.setAttribute('spellcheck', false);
-        this.nameDiv.setAttribute('contenteditable', true);
+        this.nameDiv.setAttribute('contenteditable', 'plaintext-only');
         this.nameDiv.innerText = name;
         this.nameDiv.onkeydown = (event) => {
             if (event.keyCode === 13) {
                 event.preventDefault();
             }
         }
-        const runBtn = controlsDiv.appendChild(makeBtn('▶', () => runFn(this)));
-        const delBtn = controlsDiv.appendChild(makeBtn('❌', () => delFn(this)));
+        let hasNameChanged = false;
+        this.nameDiv.oninput = () => {
+            hasNameChanged = true;
+        }
+        this.nameDiv.onblur = () => {
+            if (hasNameChanged) {
+                this.nameDiv.innerText = this.nameDiv.innerText.replaceAll(/[\n\r]/gi, '').trim();
+                hasNameChanged = false;
+            }
+        }
+        const delBtn = controlsDiv.appendChild(makeButton('❌', () => delFn(this)));
         delBtn.style.marginTop = '2em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
+        this.prefixDiv = contentsDiv.appendChild(makeDiv('ui'));
         const editorDiv = contentsDiv.appendChild(makeDiv('editor'));
         const languagePack = cm.javascript();
         this.editor = new cm.EditorView({
@@ -80,11 +80,13 @@ class Unit {
                 cmTheme,
                 cm.EditorView.lineWrapping,
                 languagePack,
-                languagePack.language.data.of({ autocomplete: onAutoComplete })
+                languagePack.language.data.of({ autocomplete: onAutoComplete }),
+                cm.indentUnit.of("    ")
             ],
             parent: editorDiv,
             doc: code
         });
+        this.suffixDiv = contentsDiv.appendChild(makeDiv('ui'));
     }
     get code() {
         return this.editor.state.doc.toString();
@@ -95,5 +97,10 @@ class Unit {
                 to: this.editor.state.doc.length,
                 insert: code
             }});
+    }
+
+    clearUI() {
+        this.prefixDiv.innerHTML = '';
+        this.postfixDiv.innerHTML = '';
     }
 }
