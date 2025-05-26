@@ -27428,12 +27428,16 @@ var cm = (function (exports) {
       return true;
   });
 
+  exports.EditorState = EditorState;
   exports.EditorView = EditorView;
   exports.HighlightStyle = HighlightStyle;
+  exports.Prec = Prec;
   exports.autocompletion = autocompletion;
   exports.basicSetup = basicSetup;
+  exports.defaultKeymap = defaultKeymap;
   exports.indentUnit = indentUnit;
   exports.javascript = javascript;
+  exports.keymap = keymap;
   exports.linter = linter;
   exports.syntaxHighlighting = syntaxHighlighting;
   exports.syntaxTree = syntaxTree;

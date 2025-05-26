@@ -173,34 +173,32 @@ const loadFromFile = () => {
     fileInputEl.click();
 };
 
-throw('qq');
 
-//--- loop:
 
-const INFO_UPDATE_INTERVAL = 1000; // ms.
-const infoDiv = document.getElementById('info');
-let prevFrameTime = 0;
-let frameCount = 0;
-let isPaused = true;
-let isLearning = false;
-const onFrame = time => {
-    const dT = time - prevFrameTime;
-    if (dT >= INFO_UPDATE_INTERVAL) {
-        const { numBytes, numTensors, numDataBuffers } = tf.memory();
-        infoDiv.innerText = `MEM: bytes = ${ numBytes }; tensors = ${ numTensors }; buffers = ${ numDataBuffers }  |  FPS: ${ Math.round(frameCount * (INFO_UPDATE_INTERVAL / dT)) }`;
-        frameCount = 0;
-        prevFrameTime = time;
-    }
-    ++frameCount;
-    if (isLearning) {
-        learn();
-    } else {
-        grid.cycle();
-    }
-    render();
-    if (isPaused) {
-        console.log('paused');
-    } else {
-        window.requestAnimationFrame(onFrame);
-    }
-}
+// const INFO_UPDATE_INTERVAL = 1000; // ms.
+// const infoDiv = document.getElementById('info');
+// let prevFrameTime = 0;
+// let frameCount = 0;
+// let isPaused = true;
+// let isLearning = false;
+// const onFrame = time => {
+//     const dT = time - prevFrameTime;
+//     if (dT >= INFO_UPDATE_INTERVAL) {
+//         const { numBytes, numTensors, numDataBuffers } = tf.memory();
+//         infoDiv.innerText = `MEM: bytes = ${ numBytes }; tensors = ${ numTensors }; buffers = ${ numDataBuffers }  |  FPS: ${ Math.round(frameCount * (INFO_UPDATE_INTERVAL / dT)) }`;
+//         frameCount = 0;
+//         prevFrameTime = time;
+//     }
+//     ++frameCount;
+//     if (isLearning) {
+//         learn();
+//     } else {
+//         grid.cycle();
+//     }
+//     render();
+//     if (isPaused) {
+//         console.log('paused');
+//     } else {
+//         window.requestAnimationFrame(onFrame);
+//     }
+// }

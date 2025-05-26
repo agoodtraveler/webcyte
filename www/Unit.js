@@ -74,14 +74,30 @@ class Unit {
         this.prefixDiv = contentsDiv.appendChild(makeDiv('ui'));
         const editorDiv = contentsDiv.appendChild(makeDiv('editor'));
         const languagePack = cm.javascript();
+        const keymap = cm.keymap.of([{
+                    key: "Ctrl-Enter",
+                    preventDefault: true,
+                    run: (view) => runFn(this)
+                },
+                {
+                    key: "Tab",
+                    preventDefault: true,
+                    run: ({ state, dispatch }) => {
+                        dispatch(state.update(state.replaceSelection('    '), { scrollIntoView: true, userEvent: "input"}))
+                        return true
+                    }
+                }
+            ]);
         this.editor = new cm.EditorView({
             extensions: [
+                keymap,
                 cm.basicSetup,
                 cmTheme,
                 cm.EditorView.lineWrapping,
                 languagePack,
                 languagePack.language.data.of({ autocomplete: onAutoComplete }),
-                cm.indentUnit.of("    ")
+                cm.indentUnit.of("    "),
+                keymap
             ],
             parent: editorDiv,
             doc: code

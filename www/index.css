@@ -49,6 +49,12 @@ button:active {
 canvas {
     image-rendering: pixelated;
 }
+a {
+    color: lightblue;
+}
+a:visited {
+    color: cadetblue;
+}
 
 
 
@@ -57,21 +63,26 @@ canvas {
     flex-flow: row wrap;
     align-items: center;
     justify-content: space-between;
-    padding-left: 0.5em;
-    padding-right: 0.5em;
+    padding-left: 1ch;
+    padding-right: 1ch;
     padding-top: 0.25em;
     padding-bottom: 0.25em;
     background-color: var(--headerColor);
 }
 .header button {
     padding: 2pt 8pt 2pt 8pt;
+    margin-left: 0.5ch;
+    margin-right: 0.5ch;
 }
 .header .title {
     color: var(--logoColor);
 }
-.spacer {
-    padding-left: 0.5ch;
-    padding-right: 0.5ch;
+.header .controls {
+    margin-left: 4ch;
+}
+.header .links {
+    flex-grow: 1;
+    text-align: right;
 }
 
 
