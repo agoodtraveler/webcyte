@@ -1,4 +1,4 @@
-const cmTheme = [];
+const editorTheme = [];
 
 (() => {
 /* based on https://github.com/dennis84/codemirror-themes */
@@ -115,6 +115,6 @@ const cmTheme = [];
         { tag: cm.tags.strikethrough, textDecoration: 'line-through' },
      ]);
 
-    cmTheme.length = 0;
-    cmTheme.push(theme, cm.syntaxHighlighting(highlightStyle));  
+    editorTheme.length = 0;
+    editorTheme.push(theme, cm.syntaxHighlighting(highlightStyle));  
 })();

@@ -20,95 +20,9 @@ const makeCanvas = (width, height) => {
     return canvas;
 }
 
-const weights = {};
-const units = [];
+
+
 const mainDiv = document.getElementById('main');
-
-const runUnit = (unit) => {
-    try {
-        const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', ...units.map(u => u.name), unit.code);
-        unit.clearUI();
-        fn(unit.self, weights, unit.prefixDiv, unit.suffixDiv, ...units.map(u => u.self));
-    } catch (error) {
-        const message = error.message;
-        const stackLines = error.stack?.split('\n');
-        console.log(message, stackLines[0]);
-    }
-}
-const removeUnit = (unit) => {
-    unit.div.parentElement.removeChild(unit.div);
-    units.splice(units.indexOf(unit), 1);
-    units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
-    updateInserts();
-}
-const renameUnit = (unit, newName) => {
-    return Unit.isValidName(newName) && units.filter(u => (u != unit && u.name != newName)).length === 0;
-}
-const insertUnit = (name, code, atIndex = units.length) => {
-    const unit = new Unit(name, code, runUnit, removeUnit, renameUnit);
-    units.splice(atIndex, 0, unit);
-    units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
-    mainDiv.appendChild(unit.div);
-    updateInserts();
-    return unit;
-}
-const insertNewUnit = (atIndex) => {
-    const prefix = 'unit_';
-    let num = 0;
-    let currName = `${ prefix }${ num }`;
-    while (units.find(u => u.name === currName)) {
-        currName = `${ prefix }${ ++num }`
-    }
-    insertUnit(currName, '// Hello World!', atIndex);
-}
-
-const updateInserts = () => {
-    mainDiv.querySelectorAll('.insert').forEach(div => div.parentElement.removeChild(div));
-    for (let i = 0; i <= units.length; ++i) {
-        const div = mainDiv.appendChild(makeDiv('insert'));
-        const order = i * 2;
-        div.style.order = order;
-        div.appendChild(makeButton('+', () => insertNewUnit(i)));
-    }
-}
-
-const reset = () => {
-    weights = {};
-    units.length = 0;
-    mainDiv.innerHTML = '';
-    updateInserts();
-}
-
-const serialize = async () => {
-    const dst = {
-        weights: {},
-        units: units.map((currUnit) => ({ name: currUnit.name, code: currUnit.code })),
-    };
-    for (const currName in weights) {
-        dst.weights[currName] = {
-            isVariable: weights[currName] instanceof tf.Variable,
-            value: await weights[currName].array()
-        };
-    }
-    return JSON.stringify(dst);
-}
-const deserialize = (jsonStr) => {
-    const src = JSON.parse(jsonStr);
-    for (const currName in weights) {
-        tf.dispose(weights[currName]);
-        delete weights[currName];
-    }
-    for (const currName in src.weights) {
-        const currWeights = src.weights[currName];
-        const tensor = tf.tensor(currWeights.value);
-        weights[currName] = currWeights.isVariable ? tf.variable(tensor) : tensor;
-    }
-    reset();
-    src.units.forEach(currUnit => insertUnit(currUnit.name, currUnit.code));
-}
-
-
-
 mainDiv.onscroll = () => {
     const contentsRect = mainDiv.getBoundingClientRect();
     mainDiv.querySelectorAll('.Unit').forEach(currUnitDiv => {
@@ -125,6 +39,8 @@ mainDiv.onscroll = () => {
     });
 }
 
+let substrate = null;
+
 window.onload = async () => {
     await tf.ready();
     if (DEV_MODE) {
@@ -132,20 +48,14 @@ window.onload = async () => {
     } else {
         tf.enableProdMode();
     }
-    insertUnit('intro', DEFAULT_INTRO_CODE);
-    insertUnit('params', DEFAULT_PARAMS_CODE);
-    insertUnit('weights', DEFAULT_WEIGHTS_CODE);
-    insertUnit('target', DEFAULT_TARGET_CODE);
-    insertUnit('cycle', DEFAULT_CYCLE_CODE);
-    insertUnit('learn', DEFAULT_LEARN_CODE);
-    insertUnit('grid', DEFAULT_GRID_CODE);
-    updateInserts();
+    substrate = makeDefaultSubstrate();
+    mainDiv.appendChild(substrate.div);
 }
 
 
 
 const saveToFile = async () => {
-    const url = URL.createObjectURL(new Blob([ await serialize() ], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([ await substrate.serialize() ], { type: 'application/json' }));
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
     link.download = 'webcyte.json';
@@ -164,7 +74,7 @@ const loadFromFile = () => {
             return;
         }
         try {
-            deserialize(await file.text());
+            substrate.deserialize(await file.text());
             console.log('Model loaded.');
         } catch (error) {
             console.error('Error loading model:', error);

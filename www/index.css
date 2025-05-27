@@ -88,8 +88,6 @@ a:visited {
 
 
 #main {
-    display: flex;
-    flex-flow: column;
     position: absolute;
     top: 2.1em;
     bottom: 0px;
@@ -99,6 +97,11 @@ a:visited {
 }
 
 
+
+.Substrate {
+    display: flex;
+    flex-flow: column;
+}
 
 .Unit {
     display: flex;
@@ -162,10 +165,6 @@ a:visited {
 .cm-editor.cm-focused {
     outline: none;
 }
-
-/* .Unit .contents .ui {
-    background-color: #FFFFFF;
-} */
 
 
 

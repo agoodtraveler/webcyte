@@ -1,17 +1,21 @@
-const fnToCode = (fn) => {
-    const fnStr = fn.toString();
-    const startIndex = fnStr.indexOf('{');
-    const endIndex = fnStr.lastIndexOf('}');
-    if (startIndex < 0 || endIndex < 0) throw new Error('assert');
-    return fnStr.substring(startIndex + 1, endIndex).trim();
-}
+const makeDefaultSubstrate = () => {
+    const result = new Substrate();
+    const toCode = (fn) => {
+        const fnStr = fn.toString();
+        const startIndex = fnStr.indexOf('{');
+        const endIndex = fnStr.lastIndexOf('}');
+        if (startIndex < 0 || endIndex < 0) throw new Error('assert');
+        return fnStr.substring(startIndex + 1, endIndex).trim();
+    }
+
+
+result.insertUnit('intro', toCode((self, weights, prefixDiv, suffixDiv) => {
+prefixDiv.innerHTML = `<h1>Parameters</h1>`;
+}));
 
 
 
-const DEFAULT_INTRO_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
-    prefixDiv.innerHTML = `<h1>Parameters</h1>`;
-});
-const DEFAULT_PARAMS_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
+result.insertUnit('params', toCode((self, weights, prefixDiv, suffixDiv) => {
 suffixDiv.innerHTML = ``;
 self.grid_width = 48;
 self.grid_height = self.grid_width;
@@ -36,12 +40,10 @@ self.attractor_cost_threshold = 0.02
 self.brush_color = self.seed_color;
 self.brush_size = self.seed_size;
 suffixDiv.innerHTML = `done.`;
-});
+}));
 
 
-
-const DEFAULT_WEIGHTS_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
-
+result.insertUnit('weights', toCode((self, weights, prefixDiv, suffixDiv) => {
 const denseLayerShape = [ 1, 1, params.grid_depth * 3, params.dense_layer_size ];   // see compute() below, for why '3'
 const outputLayerShape = [ 1, 1, params.dense_layer_size,  params.grid_depth ];
 
@@ -63,13 +65,11 @@ self.compute = (gridState) => {
     gridState = gridState.conv2d(weights.dense, 1, 'same').relu();
     return gridState.conv2d(weights.output, 1, 'same').tanh();
 }
-
-}).trim();
-
+}));
 
 
-const DEFAULT_TARGET_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
-    
+
+result.insertUnit('target', toCode((self, weights, prefixDiv, suffixDiv) => {
 self.targetCanvas = makeCanvas(params.grid_width, params.grid_height);
 const targetCtx = self.targetCanvas.getContext('2d');
 targetCtx.font = `${ params.sample_height }px monospace`;
@@ -86,13 +86,11 @@ self.targetCanvas.onmousedown = (event) => {
     self.brush_color = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
 }
 suffixDiv.appendChild(self.targetCanvas);
-
-}).trim();
-
+}));
 
 
-const DEFAULT_CYCLE_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
 
+result.insertUnit('cycle', toCode((self, weights, prefixDiv, suffixDiv) => {
 const thresholdOp = tf.customGrad((tensor, save) => {
     save([ tensor ]);
     return {
@@ -112,19 +110,17 @@ self.cycle = (gridState) =>  tf.tidy(() => {
     const liveState = gridState.mul(liveMask);
     return liveState.add(self.compute(liveState).mul(activeMask));
 });
+}));
 
-}).trim();
 
 
-const DEFAULT_LEARN_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
-
+result.insertUnit('learn', toCode((self, weights, prefixDiv, suffixDiv) => {
 let optimizer = tf.train.adam();
 self.setLearningRate = (rate) => {
     tf.dispose(optimizer);
     optimizer = tf.train.adam(rate);
     console.log('learning rate set', rate);
 }
-
 
 let attractorSeedBatch = null;
 let attractorTargetBatch = null;
@@ -195,13 +191,11 @@ self.learn = () => {
         ++epochCount;
     }
 }
-
-}).trim();
-
+}));
 
 
-const DEFAULT_GRID_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
 
+result.insertUnit('grid', toCode((self, weights, prefixDiv, suffixDiv) => {
 const paintCtx = makeCanvas(params.grid_width, params.grid_height).getContext('2d');
 const genSeedState = () => {
     paintCtx.clearRect(0, 0, paintCtx.canvas.width, paintCtx.canvas.height);
@@ -271,6 +265,8 @@ gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
     }
     render();
 }
+}));
 
 
-}).trim();
+    return result;
+}

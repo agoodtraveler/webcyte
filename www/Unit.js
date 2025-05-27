@@ -2,21 +2,25 @@ class Unit {
     static VALID_NAME_REGEX = /^[a-zA-Z_$][a-zA-Z_$0-9]*$/;
     static MIN_NAME_LENGTH = 1;
     static MAX_NAME_LENGTH = 256;
+    static DEFAULT_NAME_PREFIX = 'unit_';
+    static DEFAULT_CODE = '// Hello World!';
     static isValidName = (name) => name.length <= Unit.MAX_NAME_LENGTH && name.length >= Unit.MIN_NAME_LENGTH && Unit.VALID_NAME_REGEX.test(name);
     
     name = null;
     self = null;
+    substrate = null;
     prefixDiv = null;
     suffixDiv = null;
     div = null;
     editor = null;
-    constructor(name, code, runFn, delFn, renameFn) {
+    constructor(name, code, substrate) {
         this.name = name;
         this.self = {};
+        this.substrate = substrate;
         this.div = makeDiv('Unit');
         const panelDiv = this.div.appendChild(makeDiv('panel'));
         const controlsDiv = panelDiv.appendChild(makeDiv('controls'));
-        const runBtn = controlsDiv.appendChild(makeButton('▶', () => runFn(this)));
+        const runBtn = controlsDiv.appendChild(makeButton('▶', () => this.substrate.runUnit(this)));
         const nameDiv = controlsDiv.appendChild(makeDiv('title'));
         nameDiv.setAttribute('spellcheck', false);
         nameDiv.setAttribute('contenteditable', 'plaintext-only');
@@ -34,23 +38,24 @@ class Unit {
             }
         }
         nameDiv.onblur = () => {
-            if (renameFn(this, nameDiv.innerText)) {
+            const newName = nameDiv.innerText.trim();
+            if (Unit.isValidName(newName) && substrate.units.filter(x => (x != this && x.name != newName)).length === 0) {
                 this.name = nameDiv.innerText;
             } else {
                 nameDiv.innerText = this.name;
             }
             nameDiv.classList.remove('invalid');
         }
-        const delBtn = controlsDiv.appendChild(makeButton('❌', () => delFn(this)));
+        const delBtn = controlsDiv.appendChild(makeButton('❌', () => this.substrate.removeUnit(this)));
         delBtn.style.marginTop = '2em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
-        this.prefixDiv = contentsDiv.appendChild(makeDiv('ui'));
+        this.prefixDiv = contentsDiv.appendChild(makeDiv('prefixDiv'));
         const editorDiv = contentsDiv.appendChild(makeDiv('editor'));
         const languagePack = cm.javascript();
         const webcyteKeymap = cm.keymap.of([{
                     key: "Ctrl-Enter",
                     preventDefault: true,
-                    run: (view) => { runFn(this); return true; }
+                    run: (view) => { this.substrate.runUnit(this); return true; }
                 },
                 {
                     key: "Tab",
@@ -87,7 +92,7 @@ class Unit {
                     ...cm.completionKeymap,
                     ...cm.lintKeymap
                 ]),
-                cmTheme,
+                editorTheme,
                 cm.EditorView.lineWrapping,
                 languagePack,
                 languagePack.language.data.of({ autocomplete: completionContext => this.onAutoComplete(completionContext) }),
@@ -96,7 +101,7 @@ class Unit {
             parent: editorDiv,
             doc: code
         });
-        this.suffixDiv = contentsDiv.appendChild(makeDiv('ui'));
+        this.suffixDiv = contentsDiv.appendChild(makeDiv('suffixDiv'));
     }
     get code() {
         return this.editor.state.doc.toString();
