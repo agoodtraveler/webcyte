@@ -8,35 +8,39 @@ const fnToCode = (fn) => {
 
 
 
-const DEFAULT_PARAMS_CODE = fnToCode((console, params, weights, shared, prefixDiv, suffixDiv) => {
-prefixDiv.innerHTML = `<h1>Parameters</h1>`;
-params.grid_width = 48;
-params.grid_height = params.grid_width;
-params.grid_depth = 16;
-params.dense_layer_size = 128;
-params.weight_init_min = -0.1;
-params.weight_init_max = 0.1;
-params.cell_firing_rate = 0.5;
-params.live_threshold = 0.1;
-params.sample = '🙂'; // '💾'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
-params.sample_height = 0.5 * params.grid_height;
-params.seed_color = '#FFFFFFFF';
-params.seed_size = 2;
-params.attractor_batch_max_count = 2;   // 4 nearly maxes out 8GB
+const DEFAULT_INTRO_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
+    prefixDiv.innerHTML = `<h1>Parameters</h1>`;
+});
+const DEFAULT_PARAMS_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
+suffixDiv.innerHTML = ``;
+self.grid_width = 48;
+self.grid_height = self.grid_width;
+self.grid_depth = 16;
+self.dense_layer_size = 128;
+self.weight_init_min = -0.1;
+self.weight_init_max = 0.1;
+self.cell_firing_rate = 0.5;
+self.live_threshold = 0.1;
+self.sample = '🙂'; // '💾'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
+self.sample_height = 0.5 * self.grid_height;
+self.seed_color = '#FFFFFFFF';
+self.seed_size = 2;
+self.attractor_batch_max_count = 2;   // 4 nearly maxes out 8GB
 
-params.epoch_length_min = 64;
-params.epoch_length_max = 96;
-params.attractor_switch_period = 64;
-params.attractor_max_overrun = params.epoch_length_max * 16;
-params.attractor_cost_threshold = 0.02
+self.epoch_length_min = 64;
+self.epoch_length_max = 96;
+self.attractor_switch_period = 64;
+self.attractor_max_overrun = self.epoch_length_max * 16;
+self.attractor_cost_threshold = 0.02
 
-shared.brush_color = params.seed_color;
-shared.brush_size = params.seed_size;
+self.brush_color = self.seed_color;
+self.brush_size = self.seed_size;
+suffixDiv.innerHTML = `done.`;
 });
 
 
 
-const DEFAULT_WEIGHTS_CODE = fnToCode((console, params, weights, shared, prefixDiv, suffixDiv) => {
+const DEFAULT_WEIGHTS_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
 
 const denseLayerShape = [ 1, 1, params.grid_depth * 3, params.dense_layer_size ];   // see compute() below, for why '3'
 const outputLayerShape = [ 1, 1, params.dense_layer_size,  params.grid_depth ];
@@ -52,7 +56,7 @@ weights.sobel_y = tf.tidy(() => tf.tensor([ [ -1, -2, -1], [ 0, 0, 0 ], [ 1, 2, 
 weights.dense = tf.tidy(() => tf.variable(tf.randomUniform(denseLayerShape, params.weight_init_min, params.weight_init_max, 'float32')));
 weights.output = tf.tidy(() => tf.variable(tf.randomUniform(outputLayerShape, params.weight_init_min, params.weight_init_max, 'float32')));
 
-shared.compute = (gridState) => {
+self.compute = (gridState) => {
     const xGrad = gridState.depthwiseConv2d(weights.sobel_x, 1, 'same');
     const yGrad = gridState.depthwiseConv2d(weights.sobel_y, 1, 'same');
     gridState = tf.concat([ xGrad, yGrad, gridState ], 3);
@@ -64,30 +68,30 @@ shared.compute = (gridState) => {
 
 
 
-const DEFAULT_TARGET_CODE = fnToCode((console, params, weights, shared, prefixDiv, suffixDiv) => {
+const DEFAULT_TARGET_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
     
-shared.targetCanvas = makeCanvas(params.grid_width, params.grid_height);
-const targetCtx = shared.targetCanvas.getContext('2d');
+self.targetCanvas = makeCanvas(params.grid_width, params.grid_height);
+const targetCtx = self.targetCanvas.getContext('2d');
 targetCtx.font = `${ params.sample_height }px monospace`;
 const sampleMeasurements = targetCtx.measureText(params.sample);
-targetCtx.clearRect(0, 0, shared.targetCanvas.width, shared.targetCanvas.height);
+targetCtx.clearRect(0, 0, self.targetCanvas.width, self.targetCanvas.height);
 targetCtx.fillStyle = '#000000FF';
 targetCtx.translate((params.grid_width) / 2, (params.grid_height) / 2);
 targetCtx.fillText(params.sample, -0.5 * sampleMeasurements.width, 0.5 * (params.sample_height - sampleMeasurements.fontBoundingBoxDescent));
 
-shared.targetCanvas.onmousedown = (event) => {
-    const x = Math.floor((event.offsetX * params.grid_width) / shared.targetCanvas.offsetWidth);
-    const y = Math.floor((event.offsetY * params.grid_height) / shared.targetCanvas.offsetHeight);
+self.targetCanvas.onmousedown = (event) => {
+    const x = Math.floor((event.offsetX * params.grid_width) / self.targetCanvas.offsetWidth);
+    const y = Math.floor((event.offsetY * params.grid_height) / self.targetCanvas.offsetHeight);
     const pixel = targetCtx.getImageData(x, y, 1, 1).data;
-    shared.brush_color = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
+    self.brush_color = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
 }
-suffixDiv.appendChild(shared.targetCanvas);
+suffixDiv.appendChild(self.targetCanvas);
 
 }).trim();
 
 
 
-const DEFAULT_CYCLE_CODE = fnToCode((console, params, weights, shared, prefixDiv, suffixDiv) => {
+const DEFAULT_CYCLE_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
 
 const thresholdOp = tf.customGrad((tensor, save) => {
     save([ tensor ]);
@@ -101,21 +105,21 @@ const thresholdOp = tf.customGrad((tensor, save) => {
     };
 });
 
-shared.cycle = (gridState) =>  tf.tidy(() => {
+self.cycle = (gridState) =>  tf.tidy(() => {
     const activeMask = tf.randomUniform([ 1, params.grid_height, params.grid_width ]).less(params.cell_firing_rate).cast('float32').expandDims(3);
     const alpha = gridState.slice([ 0, 0, 0, 3 ], [ -1, -1, -1, 1 ]);
     const liveMask = thresholdOp(tf.pool(alpha, [ 3, 3 ], 'max', 'same', [ 1, 1 ]));
     const liveState = gridState.mul(liveMask);
-    return liveState.add(shared.compute(liveState).mul(activeMask));
+    return liveState.add(self.compute(liveState).mul(activeMask));
 });
 
 }).trim();
 
 
-const DEFAULT_LEARN_CODE = fnToCode((console, params, weights, shared, prefixDiv, suffixDiv) => {
+const DEFAULT_LEARN_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
 
 let optimizer = tf.train.adam();
-shared.setLearningRate = (rate) => {
+self.setLearningRate = (rate) => {
     tf.dispose(optimizer);
     optimizer = tf.train.adam(rate);
     console.log('learning rate set', rate);
@@ -168,7 +172,7 @@ const epoch = (seedState, targetState, epochLength) => {
     let state = seedState;
     const costTensor = optimizer.minimize(() => tf.tidy(() => {
         for (let i = 0; i < epochLength; ++i) {
-            state = shared.cycle(state);
+            state = self.cycle(state);
         }
         tf.keep(state);
         return tf.losses.meanSquaredError(targetState, state.slice([ 0, 0, 0, 0 ], [ -1, -1, -1, 4 ]));
@@ -178,7 +182,7 @@ const epoch = (seedState, targetState, epochLength) => {
     return { state, cost };
 }
 
-shared.learn = () => {
+self.learn = () => {
     for (let i = 0; i < 8; ++i) {
         const epochLength = params.epoch_length_min + Math.round((Math.random() * (params.epoch_length_max - params.epoch_length_min)));
         const { state, cost } = epoch(seedState, targetState, epochLength);
@@ -196,7 +200,7 @@ shared.learn = () => {
 
 
 
-const DEFAULT_GRID_CODE = fnToCode((console, params, weights, shared, prefixDiv, suffixDiv) => {
+const DEFAULT_GRID_CODE = fnToCode((self, weights, prefixDiv, suffixDiv) => {
 
 const paintCtx = makeCanvas(params.grid_width, params.grid_height).getContext('2d');
 const genSeedState = () => {
@@ -212,7 +216,7 @@ const genSeedState = () => {
 
 let gridState = tf.zeros([ 1, params.grid_height, params.grid_width, params.grid_depth ]);
 const seedState = genSeedState();
-const targetState = tf.tidy(() => tf.browser.fromPixels(shared.targetCanvas, 4)
+const targetState = tf.tidy(() => tf.browser.fromPixels(self.targetCanvas, 4)
     .cast('float32')
     .div(255.0)
     .expandDims(0));
@@ -263,7 +267,7 @@ gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
     if (event.buttons & 1 === 1) {
         const x = Math.floor((event.offsetX * params.grid_width) / gridCanvas.offsetWidth);
         const y = Math.floor((event.offsetY * params.grid_height) / gridCanvas.offsetHeight);
-        grid.paint(x, y, shared.brush_size, shared.brush_color);
+        grid.paint(x, y, self.brush_size, self.brush_color);
     }
     render();
 }

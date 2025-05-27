@@ -20,35 +20,46 @@ const makeCanvas = (width, height) => {
     return canvas;
 }
 
-const globals = { params: {}, weights: {} };
+const weights = {};
 const units = [];
-const shared = {};
 const mainDiv = document.getElementById('main');
 
 const runUnit = (unit) => {
     try {
-        const fn = new Function('console', 'params', 'weights', 'shared', 'prefixDiv', 'suffixDiv', unit.code);
+        const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', ...units.map(u => u.name), unit.code);
         unit.clearUI;
-        fn(unit.console, globals.params, globals.weights, shared, unit.prefixDiv, unit.suffixDiv);
+        fn(unit.self, weights, unit.prefixDiv, unit.suffixDiv, ...units.map(u => u.self));
     } catch (error) {
         const message = error.message;
         const stackLines = error.stack?.split('\n');
         console.log(message, stackLines[0]);
     }
 }
-const delUnit = (unit) => {
+const removeUnit = (unit) => {
     unit.div.parentElement.removeChild(unit.div);
     units.splice(units.indexOf(unit), 1);
     units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
     updateInserts();
 }
-const addUnit = (name, code, atIndex = units.length) => {
-    const unit = new Unit(name, code, runUnit, delUnit);
+const renameUnit = (unit, newName) => {
+    return Unit.isValidName(newName) && units.filter(u => (u != unit && u.name != newName)).length === 0;
+}
+const insertUnit = (name, code, atIndex = units.length) => {
+    const unit = new Unit(name, code, runUnit, removeUnit, renameUnit);
     units.splice(atIndex, 0, unit);
     units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
     mainDiv.appendChild(unit.div);
     updateInserts();
     return unit;
+}
+const insertNewUnit = (atIndex) => {
+    const prefix = 'unit_';
+    let num = 0;
+    let currName = `${ prefix }${ num }`;
+    while (units.find(u => u.name === currName)) {
+        currName = `${ prefix }${ ++num }`
+    }
+    insertUnit(currName, '// Hello World!', atIndex);
 }
 
 const updateInserts = () => {
@@ -57,13 +68,12 @@ const updateInserts = () => {
         const div = mainDiv.appendChild(makeDiv('insert'));
         const order = i * 2;
         div.style.order = order;
-        const btn = div.appendChild(makeButton('+', () => addUnit(`UNIT ${ i }`, '// Hello World!', i)));
+        div.appendChild(makeButton('+', () => insertNewUnit(i)));
     }
 }
 
 const reset = () => {
-    globals.params = {};
-    globals.weights = {};
+    weights = {};
     units.length = 0;
     mainDiv.innerHTML = '';
     updateInserts();
@@ -71,40 +81,30 @@ const reset = () => {
 
 const serialize = async () => {
     const dst = {
-        globals: {
-            params: {},
-            weights: {}
-        },
-        units: units.map((currUnit) => ({ name: currUnit.nameDiv.innerText, code: currUnit.code })),
+        weights: {},
+        units: units.map((currUnit) => ({ name: currUnit.name, code: currUnit.code })),
     };
-    for (const currName in globals.params) {
-        dst.globals.params[currName] = globals.params[currName];
-    }
-    for (const currName in globals.weights) {
-        dst.globals.weights[currName] = {
-            isVariable: globals.weights[currName] instanceof tf.Variable,
-            value: await globals.weights[currName].array()
+    for (const currName in weights) {
+        dst.weights[currName] = {
+            isVariable: weights[currName] instanceof tf.Variable,
+            value: await weights[currName].array()
         };
     }
     return JSON.stringify(dst);
 }
 const deserialize = (jsonStr) => {
     const src = JSON.parse(jsonStr);
-    for (const currName in globals.weights) {
-        tf.dispose(globals.weights[currName]);
-        delete globals.weights[currName];
+    for (const currName in weights) {
+        tf.dispose(weights[currName]);
+        delete weights[currName];
     }
-    for (const currName in src.globals.weights) {
-        const currWeights = src.globals.weights[currName];
+    for (const currName in src.weights) {
+        const currWeights = src.weights[currName];
         const tensor = tf.tensor(currWeights.value);
-        globals.weights[currName] = currWeights.isVariable ? tf.variable(tensor) : tensor;
-    }
-    globals.params = {};
-    for (const currName in src.globals.params) {
-        globals.params[currName] = src.globals.params[currName];
+        weights[currName] = currWeights.isVariable ? tf.variable(tensor) : tensor;
     }
     reset();
-    src.units.forEach(currUnit => addUnit(currUnit.name, currUnit.code));
+    src.units.forEach(currUnit => insertUnit(currUnit.name, currUnit.code));
 }
 
 
@@ -132,12 +132,13 @@ window.onload = async () => {
     } else {
         tf.enableProdMode();
     }
-    addUnit('params', DEFAULT_PARAMS_CODE);
-    addUnit('weights', DEFAULT_WEIGHTS_CODE);
-    addUnit('target', DEFAULT_TARGET_CODE);
-    addUnit('cycle', DEFAULT_CYCLE_CODE);
-    addUnit('learn', DEFAULT_LEARN_CODE);
-    addUnit('grid', DEFAULT_GRID_CODE);
+    insertUnit('intro', DEFAULT_INTRO_CODE);
+    insertUnit('params', DEFAULT_PARAMS_CODE);
+    insertUnit('weights', DEFAULT_WEIGHTS_CODE);
+    insertUnit('target', DEFAULT_TARGET_CODE);
+    insertUnit('cycle', DEFAULT_CYCLE_CODE);
+    insertUnit('learn', DEFAULT_LEARN_CODE);
+    insertUnit('grid', DEFAULT_GRID_CODE);
     updateInserts();
 }
 

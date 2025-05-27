@@ -133,6 +133,10 @@ a:visited {
     width: 1.5em;
     overflow: hidden;
 }
+.Unit .panel .controls .title.invalid {
+    border-radius: 2pt;
+    outline: 2pt solid darkred;
+}
 
 .Unit .contents {
     display: flex;
