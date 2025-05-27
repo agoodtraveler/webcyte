@@ -13783,133 +13783,6 @@ var cm = (function (exports) {
       decorations: v => v.decorations
   });
 
-  // Don't compute precise column positions for line offsets above this
-  // (since it could get expensive). Assume offset==column for them.
-  const MaxOff = 2000;
-  function rectangleFor(state, a, b) {
-      let startLine = Math.min(a.line, b.line), endLine = Math.max(a.line, b.line);
-      let ranges = [];
-      if (a.off > MaxOff || b.off > MaxOff || a.col < 0 || b.col < 0) {
-          let startOff = Math.min(a.off, b.off), endOff = Math.max(a.off, b.off);
-          for (let i = startLine; i <= endLine; i++) {
-              let line = state.doc.line(i);
-              if (line.length <= endOff)
-                  ranges.push(EditorSelection.range(line.from + startOff, line.to + endOff));
-          }
-      }
-      else {
-          let startCol = Math.min(a.col, b.col), endCol = Math.max(a.col, b.col);
-          for (let i = startLine; i <= endLine; i++) {
-              let line = state.doc.line(i);
-              let start = findColumn(line.text, startCol, state.tabSize, true);
-              if (start < 0) {
-                  ranges.push(EditorSelection.cursor(line.to));
-              }
-              else {
-                  let end = findColumn(line.text, endCol, state.tabSize);
-                  ranges.push(EditorSelection.range(line.from + start, line.from + end));
-              }
-          }
-      }
-      return ranges;
-  }
-  function absoluteColumn(view, x) {
-      let ref = view.coordsAtPos(view.viewport.from);
-      return ref ? Math.round(Math.abs((ref.left - x) / view.defaultCharacterWidth)) : -1;
-  }
-  function getPos(view, event) {
-      let offset = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
-      let line = view.state.doc.lineAt(offset), off = offset - line.from;
-      let col = off > MaxOff ? -1
-          : off == line.length ? absoluteColumn(view, event.clientX)
-              : countColumn(line.text, view.state.tabSize, offset - line.from);
-      return { line: line.number, col, off };
-  }
-  function rectangleSelectionStyle(view, event) {
-      let start = getPos(view, event), startSel = view.state.selection;
-      if (!start)
-          return null;
-      return {
-          update(update) {
-              if (update.docChanged) {
-                  let newStart = update.changes.mapPos(update.startState.doc.line(start.line).from);
-                  let newLine = update.state.doc.lineAt(newStart);
-                  start = { line: newLine.number, col: start.col, off: Math.min(start.off, newLine.length) };
-                  startSel = startSel.map(update.changes);
-              }
-          },
-          get(event, _extend, multiple) {
-              let cur = getPos(view, event);
-              if (!cur)
-                  return startSel;
-              let ranges = rectangleFor(view.state, start, cur);
-              if (!ranges.length)
-                  return startSel;
-              if (multiple)
-                  return EditorSelection.create(ranges.concat(startSel.ranges));
-              else
-                  return EditorSelection.create(ranges);
-          }
-      };
-  }
-  /**
-  Create an extension that enables rectangular selections. By
-  default, it will react to left mouse drag with the Alt key held
-  down. When such a selection occurs, the text within the rectangle
-  that was dragged over will be selected, as one selection
-  [range](https://codemirror.net/6/docs/ref/#state.SelectionRange) per line.
-  */
-  function rectangularSelection(options) {
-      let filter = (options === null || options === void 0 ? void 0 : options.eventFilter) || (e => e.altKey && e.button == 0);
-      return EditorView.mouseSelectionStyle.of((view, event) => filter(event) ? rectangleSelectionStyle(view, event) : null);
-  }
-  const keys = {
-      Alt: [18, e => !!e.altKey],
-      Control: [17, e => !!e.ctrlKey],
-      Shift: [16, e => !!e.shiftKey],
-      Meta: [91, e => !!e.metaKey]
-  };
-  const showCrosshair = { style: "cursor: crosshair" };
-  /**
-  Returns an extension that turns the pointer cursor into a
-  crosshair when a given modifier key, defaulting to Alt, is held
-  down. Can serve as a visual hint that rectangular selection is
-  going to happen when paired with
-  [`rectangularSelection`](https://codemirror.net/6/docs/ref/#view.rectangularSelection).
-  */
-  function crosshairCursor(options = {}) {
-      let [code, getter] = keys[options.key || "Alt"];
-      let plugin = ViewPlugin.fromClass(class {
-          constructor(view) {
-              this.view = view;
-              this.isDown = false;
-          }
-          set(isDown) {
-              if (this.isDown != isDown) {
-                  this.isDown = isDown;
-                  this.view.update([]);
-              }
-          }
-      }, {
-          eventObservers: {
-              keydown(e) {
-                  this.set(e.keyCode == code || getter(e));
-              },
-              keyup(e) {
-                  if (e.keyCode == code || !getter(e))
-                      this.set(false);
-              },
-              mousemove(e) {
-                  this.set(getter(e));
-              }
-          }
-      });
-      return [
-          plugin,
-          EditorView.contentAttributes.of(view => { var _a; return ((_a = view.plugin(plugin)) === null || _a === void 0 ? void 0 : _a.isDown) ? showCrosshair : null; })
-      ];
-  }
-
   const Outside = "-10000px";
   class TooltipViewManager {
       constructor(view, facet, createTooltipView, removeTooltipView) {
@@ -19430,7 +19303,7 @@ var cm = (function (exports) {
   /**
   A default highlight style (works well with light themes).
   */
-  const defaultHighlightStyle = /*@__PURE__*/HighlightStyle.define([
+  /*@__PURE__*/HighlightStyle.define([
       { tag: tags.meta,
           color: "#404740" },
       { tag: tags.link,
@@ -22386,6 +22259,671 @@ var cm = (function (exports) {
       baseTheme$2
   ];
 
+  class SelectedDiagnostic {
+      constructor(from, to, diagnostic) {
+          this.from = from;
+          this.to = to;
+          this.diagnostic = diagnostic;
+      }
+  }
+  class LintState {
+      constructor(diagnostics, panel, selected) {
+          this.diagnostics = diagnostics;
+          this.panel = panel;
+          this.selected = selected;
+      }
+      static init(diagnostics, panel, state) {
+          // Filter the list of diagnostics for which to create markers
+          let diagnosticFilter = state.facet(lintConfig).markerFilter;
+          if (diagnosticFilter)
+              diagnostics = diagnosticFilter(diagnostics, state);
+          let sorted = diagnostics.slice().sort((a, b) => a.from - b.from || a.to - b.to);
+          let deco = new RangeSetBuilder(), active = [], pos = 0;
+          for (let i = 0;;) {
+              let next = i == sorted.length ? null : sorted[i];
+              if (!next && !active.length)
+                  break;
+              let from, to;
+              if (active.length) {
+                  from = pos;
+                  to = active.reduce((p, d) => Math.min(p, d.to), next && next.from > from ? next.from : 1e8);
+              }
+              else {
+                  from = next.from;
+                  to = next.to;
+                  active.push(next);
+                  i++;
+              }
+              while (i < sorted.length) {
+                  let next = sorted[i];
+                  if (next.from == from && (next.to > next.from || next.to == from)) {
+                      active.push(next);
+                      i++;
+                      to = Math.min(next.to, to);
+                  }
+                  else {
+                      to = Math.min(next.from, to);
+                      break;
+                  }
+              }
+              let sev = maxSeverity(active);
+              if (active.some(d => d.from == d.to || (d.from == d.to - 1 && state.doc.lineAt(d.from).to == d.from))) {
+                  deco.add(from, from, Decoration.widget({
+                      widget: new DiagnosticWidget(sev),
+                      diagnostics: active.slice()
+                  }));
+              }
+              else {
+                  let markClass = active.reduce((c, d) => d.markClass ? c + " " + d.markClass : c, "");
+                  deco.add(from, to, Decoration.mark({
+                      class: "cm-lintRange cm-lintRange-" + sev + markClass,
+                      diagnostics: active.slice(),
+                      inclusiveEnd: active.some(a => a.to > to)
+                  }));
+              }
+              pos = to;
+              for (let i = 0; i < active.length; i++)
+                  if (active[i].to <= pos)
+                      active.splice(i--, 1);
+          }
+          let set = deco.finish();
+          return new LintState(set, panel, findDiagnostic(set));
+      }
+  }
+  function findDiagnostic(diagnostics, diagnostic = null, after = 0) {
+      let found = null;
+      diagnostics.between(after, 1e9, (from, to, { spec }) => {
+          if (diagnostic && spec.diagnostics.indexOf(diagnostic) < 0)
+              return;
+          if (!found)
+              found = new SelectedDiagnostic(from, to, diagnostic || spec.diagnostics[0]);
+          else if (spec.diagnostics.indexOf(found.diagnostic) < 0)
+              return false;
+          else
+              found = new SelectedDiagnostic(found.from, to, found.diagnostic);
+      });
+      return found;
+  }
+  function hideTooltip(tr, tooltip) {
+      let from = tooltip.pos, to = tooltip.end || from;
+      let result = tr.state.facet(lintConfig).hideOn(tr, from, to);
+      if (result != null)
+          return result;
+      let line = tr.startState.doc.lineAt(tooltip.pos);
+      return !!(tr.effects.some(e => e.is(setDiagnosticsEffect)) || tr.changes.touchesRange(line.from, Math.max(line.to, to)));
+  }
+  function maybeEnableLint(state, effects) {
+      return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of(lintExtensions));
+  }
+  /**
+  Returns a transaction spec which updates the current set of
+  diagnostics, and enables the lint extension if if wasn't already
+  active.
+  */
+  function setDiagnostics(state, diagnostics) {
+      return {
+          effects: maybeEnableLint(state, [setDiagnosticsEffect.of(diagnostics)])
+      };
+  }
+  /**
+  The state effect that updates the set of active diagnostics. Can
+  be useful when writing an extension that needs to track these.
+  */
+  const setDiagnosticsEffect = /*@__PURE__*/StateEffect.define();
+  const togglePanel = /*@__PURE__*/StateEffect.define();
+  const movePanelSelection = /*@__PURE__*/StateEffect.define();
+  const lintState = /*@__PURE__*/StateField.define({
+      create() {
+          return new LintState(Decoration.none, null, null);
+      },
+      update(value, tr) {
+          if (tr.docChanged && value.diagnostics.size) {
+              let mapped = value.diagnostics.map(tr.changes), selected = null, panel = value.panel;
+              if (value.selected) {
+                  let selPos = tr.changes.mapPos(value.selected.from, 1);
+                  selected = findDiagnostic(mapped, value.selected.diagnostic, selPos) || findDiagnostic(mapped, null, selPos);
+              }
+              if (!mapped.size && panel && tr.state.facet(lintConfig).autoPanel)
+                  panel = null;
+              value = new LintState(mapped, panel, selected);
+          }
+          for (let effect of tr.effects) {
+              if (effect.is(setDiagnosticsEffect)) {
+                  let panel = !tr.state.facet(lintConfig).autoPanel ? value.panel : effect.value.length ? LintPanel.open : null;
+                  value = LintState.init(effect.value, panel, tr.state);
+              }
+              else if (effect.is(togglePanel)) {
+                  value = new LintState(value.diagnostics, effect.value ? LintPanel.open : null, value.selected);
+              }
+              else if (effect.is(movePanelSelection)) {
+                  value = new LintState(value.diagnostics, value.panel, effect.value);
+              }
+          }
+          return value;
+      },
+      provide: f => [showPanel.from(f, val => val.panel),
+          EditorView.decorations.from(f, s => s.diagnostics)]
+  });
+  const activeMark = /*@__PURE__*/Decoration.mark({ class: "cm-lintRange cm-lintRange-active" });
+  function lintTooltip(view, pos, side) {
+      let { diagnostics } = view.state.field(lintState);
+      let found, start = -1, end = -1;
+      diagnostics.between(pos - (side < 0 ? 1 : 0), pos + (side > 0 ? 1 : 0), (from, to, { spec }) => {
+          if (pos >= from && pos <= to &&
+              (from == to || ((pos > from || side > 0) && (pos < to || side < 0)))) {
+              found = spec.diagnostics;
+              start = from;
+              end = to;
+              return false;
+          }
+      });
+      let diagnosticFilter = view.state.facet(lintConfig).tooltipFilter;
+      if (found && diagnosticFilter)
+          found = diagnosticFilter(found, view.state);
+      if (!found)
+          return null;
+      return {
+          pos: start,
+          end: end,
+          above: view.state.doc.lineAt(start).to < end,
+          create() {
+              return { dom: diagnosticsTooltip(view, found) };
+          }
+      };
+  }
+  function diagnosticsTooltip(view, diagnostics) {
+      return crelt("ul", { class: "cm-tooltip-lint" }, diagnostics.map(d => renderDiagnostic(view, d, false)));
+  }
+  /**
+  Command to open and focus the lint panel.
+  */
+  const openLintPanel = (view) => {
+      let field = view.state.field(lintState, false);
+      if (!field || !field.panel)
+          view.dispatch({ effects: maybeEnableLint(view.state, [togglePanel.of(true)]) });
+      let panel = getPanel(view, LintPanel.open);
+      if (panel)
+          panel.dom.querySelector(".cm-panel-lint ul").focus();
+      return true;
+  };
+  /**
+  Command to close the lint panel, when open.
+  */
+  const closeLintPanel = (view) => {
+      let field = view.state.field(lintState, false);
+      if (!field || !field.panel)
+          return false;
+      view.dispatch({ effects: togglePanel.of(false) });
+      return true;
+  };
+  /**
+  Move the selection to the next diagnostic.
+  */
+  const nextDiagnostic = (view) => {
+      let field = view.state.field(lintState, false);
+      if (!field)
+          return false;
+      let sel = view.state.selection.main, next = field.diagnostics.iter(sel.to + 1);
+      if (!next.value) {
+          next = field.diagnostics.iter(0);
+          if (!next.value || next.from == sel.from && next.to == sel.to)
+              return false;
+      }
+      view.dispatch({ selection: { anchor: next.from, head: next.to }, scrollIntoView: true });
+      return true;
+  };
+  /**
+  A set of default key bindings for the lint functionality.
+
+  - Ctrl-Shift-m (Cmd-Shift-m on macOS): [`openLintPanel`](https://codemirror.net/6/docs/ref/#lint.openLintPanel)
+  - F8: [`nextDiagnostic`](https://codemirror.net/6/docs/ref/#lint.nextDiagnostic)
+  */
+  const lintKeymap = [
+      { key: "Mod-Shift-m", run: openLintPanel, preventDefault: true },
+      { key: "F8", run: nextDiagnostic }
+  ];
+  const lintPlugin = /*@__PURE__*/ViewPlugin.fromClass(class {
+      constructor(view) {
+          this.view = view;
+          this.timeout = -1;
+          this.set = true;
+          let { delay } = view.state.facet(lintConfig);
+          this.lintTime = Date.now() + delay;
+          this.run = this.run.bind(this);
+          this.timeout = setTimeout(this.run, delay);
+      }
+      run() {
+          clearTimeout(this.timeout);
+          let now = Date.now();
+          if (now < this.lintTime - 10) {
+              this.timeout = setTimeout(this.run, this.lintTime - now);
+          }
+          else {
+              this.set = false;
+              let { state } = this.view, { sources } = state.facet(lintConfig);
+              if (sources.length)
+                  batchResults(sources.map(s => Promise.resolve(s(this.view))), annotations => {
+                      if (this.view.state.doc == state.doc)
+                          this.view.dispatch(setDiagnostics(this.view.state, annotations.reduce((a, b) => a.concat(b))));
+                  }, error => { logException(this.view.state, error); });
+          }
+      }
+      update(update) {
+          let config = update.state.facet(lintConfig);
+          if (update.docChanged || config != update.startState.facet(lintConfig) ||
+              config.needsRefresh && config.needsRefresh(update)) {
+              this.lintTime = Date.now() + config.delay;
+              if (!this.set) {
+                  this.set = true;
+                  this.timeout = setTimeout(this.run, config.delay);
+              }
+          }
+      }
+      force() {
+          if (this.set) {
+              this.lintTime = Date.now();
+              this.run();
+          }
+      }
+      destroy() {
+          clearTimeout(this.timeout);
+      }
+  });
+  function batchResults(promises, sink, error) {
+      let collected = [], timeout = -1;
+      for (let p of promises)
+          p.then(value => {
+              collected.push(value);
+              clearTimeout(timeout);
+              if (collected.length == promises.length)
+                  sink(collected);
+              else
+                  timeout = setTimeout(() => sink(collected), 200);
+          }, error);
+  }
+  const lintConfig = /*@__PURE__*/Facet.define({
+      combine(input) {
+          return Object.assign({ sources: input.map(i => i.source).filter(x => x != null) }, combineConfig(input.map(i => i.config), {
+              delay: 750,
+              markerFilter: null,
+              tooltipFilter: null,
+              needsRefresh: null,
+              hideOn: () => null,
+          }, {
+              needsRefresh: (a, b) => !a ? b : !b ? a : u => a(u) || b(u)
+          }));
+      }
+  });
+  /**
+  Given a diagnostic source, this function returns an extension that
+  enables linting with that source. It will be called whenever the
+  editor is idle (after its content changed). If `null` is given as
+  source, this only configures the lint extension.
+  */
+  function linter(source, config = {}) {
+      return [
+          lintConfig.of({ source, config }),
+          lintPlugin,
+          lintExtensions
+      ];
+  }
+  function assignKeys(actions) {
+      let assigned = [];
+      if (actions)
+          actions: for (let { name } of actions) {
+              for (let i = 0; i < name.length; i++) {
+                  let ch = name[i];
+                  if (/[a-zA-Z]/.test(ch) && !assigned.some(c => c.toLowerCase() == ch.toLowerCase())) {
+                      assigned.push(ch);
+                      continue actions;
+                  }
+              }
+              assigned.push("");
+          }
+      return assigned;
+  }
+  function renderDiagnostic(view, diagnostic, inPanel) {
+      var _a;
+      let keys = inPanel ? assignKeys(diagnostic.actions) : [];
+      return crelt("li", { class: "cm-diagnostic cm-diagnostic-" + diagnostic.severity }, crelt("span", { class: "cm-diagnosticText" }, diagnostic.renderMessage ? diagnostic.renderMessage(view) : diagnostic.message), (_a = diagnostic.actions) === null || _a === void 0 ? void 0 : _a.map((action, i) => {
+          let fired = false, click = (e) => {
+              e.preventDefault();
+              if (fired)
+                  return;
+              fired = true;
+              let found = findDiagnostic(view.state.field(lintState).diagnostics, diagnostic);
+              if (found)
+                  action.apply(view, found.from, found.to);
+          };
+          let { name } = action, keyIndex = keys[i] ? name.indexOf(keys[i]) : -1;
+          let nameElt = keyIndex < 0 ? name : [name.slice(0, keyIndex),
+              crelt("u", name.slice(keyIndex, keyIndex + 1)),
+              name.slice(keyIndex + 1)];
+          return crelt("button", {
+              type: "button",
+              class: "cm-diagnosticAction",
+              onclick: click,
+              onmousedown: click,
+              "aria-label": ` Action: ${name}${keyIndex < 0 ? "" : ` (access key "${keys[i]})"`}.`
+          }, nameElt);
+      }), diagnostic.source && crelt("div", { class: "cm-diagnosticSource" }, diagnostic.source));
+  }
+  class DiagnosticWidget extends WidgetType {
+      constructor(sev) {
+          super();
+          this.sev = sev;
+      }
+      eq(other) { return other.sev == this.sev; }
+      toDOM() {
+          return crelt("span", { class: "cm-lintPoint cm-lintPoint-" + this.sev });
+      }
+  }
+  class PanelItem {
+      constructor(view, diagnostic) {
+          this.diagnostic = diagnostic;
+          this.id = "item_" + Math.floor(Math.random() * 0xffffffff).toString(16);
+          this.dom = renderDiagnostic(view, diagnostic, true);
+          this.dom.id = this.id;
+          this.dom.setAttribute("role", "option");
+      }
+  }
+  class LintPanel {
+      constructor(view) {
+          this.view = view;
+          this.items = [];
+          let onkeydown = (event) => {
+              if (event.keyCode == 27) { // Escape
+                  closeLintPanel(this.view);
+                  this.view.focus();
+              }
+              else if (event.keyCode == 38 || event.keyCode == 33) { // ArrowUp, PageUp
+                  this.moveSelection((this.selectedIndex - 1 + this.items.length) % this.items.length);
+              }
+              else if (event.keyCode == 40 || event.keyCode == 34) { // ArrowDown, PageDown
+                  this.moveSelection((this.selectedIndex + 1) % this.items.length);
+              }
+              else if (event.keyCode == 36) { // Home
+                  this.moveSelection(0);
+              }
+              else if (event.keyCode == 35) { // End
+                  this.moveSelection(this.items.length - 1);
+              }
+              else if (event.keyCode == 13) { // Enter
+                  this.view.focus();
+              }
+              else if (event.keyCode >= 65 && event.keyCode <= 90 && this.selectedIndex >= 0) { // A-Z
+                  let { diagnostic } = this.items[this.selectedIndex], keys = assignKeys(diagnostic.actions);
+                  for (let i = 0; i < keys.length; i++)
+                      if (keys[i].toUpperCase().charCodeAt(0) == event.keyCode) {
+                          let found = findDiagnostic(this.view.state.field(lintState).diagnostics, diagnostic);
+                          if (found)
+                              diagnostic.actions[i].apply(view, found.from, found.to);
+                      }
+              }
+              else {
+                  return;
+              }
+              event.preventDefault();
+          };
+          let onclick = (event) => {
+              for (let i = 0; i < this.items.length; i++) {
+                  if (this.items[i].dom.contains(event.target))
+                      this.moveSelection(i);
+              }
+          };
+          this.list = crelt("ul", {
+              tabIndex: 0,
+              role: "listbox",
+              "aria-label": this.view.state.phrase("Diagnostics"),
+              onkeydown,
+              onclick
+          });
+          this.dom = crelt("div", { class: "cm-panel-lint" }, this.list, crelt("button", {
+              type: "button",
+              name: "close",
+              "aria-label": this.view.state.phrase("close"),
+              onclick: () => closeLintPanel(this.view)
+          }, "×"));
+          this.update();
+      }
+      get selectedIndex() {
+          let selected = this.view.state.field(lintState).selected;
+          if (!selected)
+              return -1;
+          for (let i = 0; i < this.items.length; i++)
+              if (this.items[i].diagnostic == selected.diagnostic)
+                  return i;
+          return -1;
+      }
+      update() {
+          let { diagnostics, selected } = this.view.state.field(lintState);
+          let i = 0, needsSync = false, newSelectedItem = null;
+          let seen = new Set();
+          diagnostics.between(0, this.view.state.doc.length, (_start, _end, { spec }) => {
+              for (let diagnostic of spec.diagnostics) {
+                  if (seen.has(diagnostic))
+                      continue;
+                  seen.add(diagnostic);
+                  let found = -1, item;
+                  for (let j = i; j < this.items.length; j++)
+                      if (this.items[j].diagnostic == diagnostic) {
+                          found = j;
+                          break;
+                      }
+                  if (found < 0) {
+                      item = new PanelItem(this.view, diagnostic);
+                      this.items.splice(i, 0, item);
+                      needsSync = true;
+                  }
+                  else {
+                      item = this.items[found];
+                      if (found > i) {
+                          this.items.splice(i, found - i);
+                          needsSync = true;
+                      }
+                  }
+                  if (selected && item.diagnostic == selected.diagnostic) {
+                      if (!item.dom.hasAttribute("aria-selected")) {
+                          item.dom.setAttribute("aria-selected", "true");
+                          newSelectedItem = item;
+                      }
+                  }
+                  else if (item.dom.hasAttribute("aria-selected")) {
+                      item.dom.removeAttribute("aria-selected");
+                  }
+                  i++;
+              }
+          });
+          while (i < this.items.length && !(this.items.length == 1 && this.items[0].diagnostic.from < 0)) {
+              needsSync = true;
+              this.items.pop();
+          }
+          if (this.items.length == 0) {
+              this.items.push(new PanelItem(this.view, {
+                  from: -1, to: -1,
+                  severity: "info",
+                  message: this.view.state.phrase("No diagnostics")
+              }));
+              needsSync = true;
+          }
+          if (newSelectedItem) {
+              this.list.setAttribute("aria-activedescendant", newSelectedItem.id);
+              this.view.requestMeasure({
+                  key: this,
+                  read: () => ({ sel: newSelectedItem.dom.getBoundingClientRect(), panel: this.list.getBoundingClientRect() }),
+                  write: ({ sel, panel }) => {
+                      let scaleY = panel.height / this.list.offsetHeight;
+                      if (sel.top < panel.top)
+                          this.list.scrollTop -= (panel.top - sel.top) / scaleY;
+                      else if (sel.bottom > panel.bottom)
+                          this.list.scrollTop += (sel.bottom - panel.bottom) / scaleY;
+                  }
+              });
+          }
+          else if (this.selectedIndex < 0) {
+              this.list.removeAttribute("aria-activedescendant");
+          }
+          if (needsSync)
+              this.sync();
+      }
+      sync() {
+          let domPos = this.list.firstChild;
+          function rm() {
+              let prev = domPos;
+              domPos = prev.nextSibling;
+              prev.remove();
+          }
+          for (let item of this.items) {
+              if (item.dom.parentNode == this.list) {
+                  while (domPos != item.dom)
+                      rm();
+                  domPos = item.dom.nextSibling;
+              }
+              else {
+                  this.list.insertBefore(item.dom, domPos);
+              }
+          }
+          while (domPos)
+              rm();
+      }
+      moveSelection(selectedIndex) {
+          if (this.selectedIndex < 0)
+              return;
+          let field = this.view.state.field(lintState);
+          let selection = findDiagnostic(field.diagnostics, this.items[selectedIndex].diagnostic);
+          if (!selection)
+              return;
+          this.view.dispatch({
+              selection: { anchor: selection.from, head: selection.to },
+              scrollIntoView: true,
+              effects: movePanelSelection.of(selection)
+          });
+      }
+      static open(view) { return new LintPanel(view); }
+  }
+  function svg(content, attrs = `viewBox="0 0 40 40"`) {
+      return `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${encodeURIComponent(content)}</svg>')`;
+  }
+  function underline(color) {
+      return svg(`<path d="m0 2.5 l2 -1.5 l1 0 l2 1.5 l1 0" stroke="${color}" fill="none" stroke-width=".7"/>`, `width="6" height="3"`);
+  }
+  const baseTheme$1 = /*@__PURE__*/EditorView.baseTheme({
+      ".cm-diagnostic": {
+          padding: "3px 6px 3px 8px",
+          marginLeft: "-1px",
+          display: "block",
+          whiteSpace: "pre-wrap"
+      },
+      ".cm-diagnostic-error": { borderLeft: "5px solid #d11" },
+      ".cm-diagnostic-warning": { borderLeft: "5px solid orange" },
+      ".cm-diagnostic-info": { borderLeft: "5px solid #999" },
+      ".cm-diagnostic-hint": { borderLeft: "5px solid #66d" },
+      ".cm-diagnosticAction": {
+          font: "inherit",
+          border: "none",
+          padding: "2px 4px",
+          backgroundColor: "#444",
+          color: "white",
+          borderRadius: "3px",
+          marginLeft: "8px",
+          cursor: "pointer"
+      },
+      ".cm-diagnosticSource": {
+          fontSize: "70%",
+          opacity: .7
+      },
+      ".cm-lintRange": {
+          backgroundPosition: "left bottom",
+          backgroundRepeat: "repeat-x",
+          paddingBottom: "0.7px",
+      },
+      ".cm-lintRange-error": { backgroundImage: /*@__PURE__*/underline("#d11") },
+      ".cm-lintRange-warning": { backgroundImage: /*@__PURE__*/underline("orange") },
+      ".cm-lintRange-info": { backgroundImage: /*@__PURE__*/underline("#999") },
+      ".cm-lintRange-hint": { backgroundImage: /*@__PURE__*/underline("#66d") },
+      ".cm-lintRange-active": { backgroundColor: "#ffdd9980" },
+      ".cm-tooltip-lint": {
+          padding: 0,
+          margin: 0
+      },
+      ".cm-lintPoint": {
+          position: "relative",
+          "&:after": {
+              content: '""',
+              position: "absolute",
+              bottom: 0,
+              left: "-2px",
+              borderLeft: "3px solid transparent",
+              borderRight: "3px solid transparent",
+              borderBottom: "4px solid #d11"
+          }
+      },
+      ".cm-lintPoint-warning": {
+          "&:after": { borderBottomColor: "orange" }
+      },
+      ".cm-lintPoint-info": {
+          "&:after": { borderBottomColor: "#999" }
+      },
+      ".cm-lintPoint-hint": {
+          "&:after": { borderBottomColor: "#66d" }
+      },
+      ".cm-panel.cm-panel-lint": {
+          position: "relative",
+          "& ul": {
+              maxHeight: "100px",
+              overflowY: "auto",
+              "& [aria-selected]": {
+                  backgroundColor: "#ddd",
+                  "& u": { textDecoration: "underline" }
+              },
+              "&:focus [aria-selected]": {
+                  background_fallback: "#bdf",
+                  backgroundColor: "Highlight",
+                  color_fallback: "white",
+                  color: "HighlightText"
+              },
+              "& u": { textDecoration: "none" },
+              padding: 0,
+              margin: 0
+          },
+          "& [name=close]": {
+              position: "absolute",
+              top: "0",
+              right: "2px",
+              background: "inherit",
+              border: "none",
+              font: "inherit",
+              padding: 0,
+              margin: 0
+          }
+      }
+  });
+  function severityWeight(sev) {
+      return sev == "error" ? 4 : sev == "warning" ? 3 : sev == "info" ? 2 : 1;
+  }
+  function maxSeverity(diagnostics) {
+      let sev = "hint", weight = 1;
+      for (let d of diagnostics) {
+          let w = severityWeight(d.severity);
+          if (w > weight) {
+              weight = w;
+              sev = d.severity;
+          }
+      }
+      return sev;
+  }
+  const lintExtensions = [
+      lintState,
+      /*@__PURE__*/EditorView.decorations.compute([lintState], state => {
+          let { selected, panel } = state.field(lintState);
+          return !selected || !panel || selected.from == selected.to ? Decoration.none : Decoration.set([
+              activeMark.range(selected.from, selected.to)
+          ]);
+      }),
+      /*@__PURE__*/hoverTooltip(lintTooltip, { hideOn: hideTooltip }),
+      baseTheme$1
+  ];
+
   /**
   An instance of this is passed to completion source functions.
   */
@@ -23642,7 +24180,7 @@ var cm = (function (exports) {
       }
   }));
 
-  const baseTheme$1 = /*@__PURE__*/EditorView.baseTheme({
+  const baseTheme = /*@__PURE__*/EditorView.baseTheme({
       ".cm-tooltip.cm-tooltip-autocomplete": {
           "& > ul": {
               fontFamily: "monospace",
@@ -23944,7 +24482,7 @@ var cm = (function (exports) {
               let active = new ActiveSnippet(ranges, 0);
               let effects = spec.effects = [setActive.of(active)];
               if (editor.state.field(snippetState, false) === undefined)
-                  effects.push(StateEffect.appendConfig.of([snippetState, addSnippetKeymap, snippetPointerHandler, baseTheme$1]));
+                  effects.push(StateEffect.appendConfig.of([snippetState, addSnippetKeymap, snippetPointerHandler, baseTheme]));
           }
           editor.dispatch(editor.state.update(spec));
       };
@@ -24277,7 +24815,7 @@ var cm = (function (exports) {
           completionConfig.of(config),
           completionPlugin,
           completionKeymapExt,
-          baseTheme$1
+          baseTheme
       ];
   }
   /**
@@ -24302,739 +24840,6 @@ var cm = (function (exports) {
       { key: "Enter", run: acceptCompletion }
   ];
   const completionKeymapExt = /*@__PURE__*/Prec.highest(/*@__PURE__*/keymap.computeN([completionConfig], state => state.facet(completionConfig).defaultKeymap ? [completionKeymap] : []));
-
-  class SelectedDiagnostic {
-      constructor(from, to, diagnostic) {
-          this.from = from;
-          this.to = to;
-          this.diagnostic = diagnostic;
-      }
-  }
-  class LintState {
-      constructor(diagnostics, panel, selected) {
-          this.diagnostics = diagnostics;
-          this.panel = panel;
-          this.selected = selected;
-      }
-      static init(diagnostics, panel, state) {
-          // Filter the list of diagnostics for which to create markers
-          let diagnosticFilter = state.facet(lintConfig).markerFilter;
-          if (diagnosticFilter)
-              diagnostics = diagnosticFilter(diagnostics, state);
-          let sorted = diagnostics.slice().sort((a, b) => a.from - b.from || a.to - b.to);
-          let deco = new RangeSetBuilder(), active = [], pos = 0;
-          for (let i = 0;;) {
-              let next = i == sorted.length ? null : sorted[i];
-              if (!next && !active.length)
-                  break;
-              let from, to;
-              if (active.length) {
-                  from = pos;
-                  to = active.reduce((p, d) => Math.min(p, d.to), next && next.from > from ? next.from : 1e8);
-              }
-              else {
-                  from = next.from;
-                  to = next.to;
-                  active.push(next);
-                  i++;
-              }
-              while (i < sorted.length) {
-                  let next = sorted[i];
-                  if (next.from == from && (next.to > next.from || next.to == from)) {
-                      active.push(next);
-                      i++;
-                      to = Math.min(next.to, to);
-                  }
-                  else {
-                      to = Math.min(next.from, to);
-                      break;
-                  }
-              }
-              let sev = maxSeverity(active);
-              if (active.some(d => d.from == d.to || (d.from == d.to - 1 && state.doc.lineAt(d.from).to == d.from))) {
-                  deco.add(from, from, Decoration.widget({
-                      widget: new DiagnosticWidget(sev),
-                      diagnostics: active.slice()
-                  }));
-              }
-              else {
-                  let markClass = active.reduce((c, d) => d.markClass ? c + " " + d.markClass : c, "");
-                  deco.add(from, to, Decoration.mark({
-                      class: "cm-lintRange cm-lintRange-" + sev + markClass,
-                      diagnostics: active.slice(),
-                      inclusiveEnd: active.some(a => a.to > to)
-                  }));
-              }
-              pos = to;
-              for (let i = 0; i < active.length; i++)
-                  if (active[i].to <= pos)
-                      active.splice(i--, 1);
-          }
-          let set = deco.finish();
-          return new LintState(set, panel, findDiagnostic(set));
-      }
-  }
-  function findDiagnostic(diagnostics, diagnostic = null, after = 0) {
-      let found = null;
-      diagnostics.between(after, 1e9, (from, to, { spec }) => {
-          if (diagnostic && spec.diagnostics.indexOf(diagnostic) < 0)
-              return;
-          if (!found)
-              found = new SelectedDiagnostic(from, to, diagnostic || spec.diagnostics[0]);
-          else if (spec.diagnostics.indexOf(found.diagnostic) < 0)
-              return false;
-          else
-              found = new SelectedDiagnostic(found.from, to, found.diagnostic);
-      });
-      return found;
-  }
-  function hideTooltip(tr, tooltip) {
-      let from = tooltip.pos, to = tooltip.end || from;
-      let result = tr.state.facet(lintConfig).hideOn(tr, from, to);
-      if (result != null)
-          return result;
-      let line = tr.startState.doc.lineAt(tooltip.pos);
-      return !!(tr.effects.some(e => e.is(setDiagnosticsEffect)) || tr.changes.touchesRange(line.from, Math.max(line.to, to)));
-  }
-  function maybeEnableLint(state, effects) {
-      return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of(lintExtensions));
-  }
-  /**
-  Returns a transaction spec which updates the current set of
-  diagnostics, and enables the lint extension if if wasn't already
-  active.
-  */
-  function setDiagnostics(state, diagnostics) {
-      return {
-          effects: maybeEnableLint(state, [setDiagnosticsEffect.of(diagnostics)])
-      };
-  }
-  /**
-  The state effect that updates the set of active diagnostics. Can
-  be useful when writing an extension that needs to track these.
-  */
-  const setDiagnosticsEffect = /*@__PURE__*/StateEffect.define();
-  const togglePanel = /*@__PURE__*/StateEffect.define();
-  const movePanelSelection = /*@__PURE__*/StateEffect.define();
-  const lintState = /*@__PURE__*/StateField.define({
-      create() {
-          return new LintState(Decoration.none, null, null);
-      },
-      update(value, tr) {
-          if (tr.docChanged && value.diagnostics.size) {
-              let mapped = value.diagnostics.map(tr.changes), selected = null, panel = value.panel;
-              if (value.selected) {
-                  let selPos = tr.changes.mapPos(value.selected.from, 1);
-                  selected = findDiagnostic(mapped, value.selected.diagnostic, selPos) || findDiagnostic(mapped, null, selPos);
-              }
-              if (!mapped.size && panel && tr.state.facet(lintConfig).autoPanel)
-                  panel = null;
-              value = new LintState(mapped, panel, selected);
-          }
-          for (let effect of tr.effects) {
-              if (effect.is(setDiagnosticsEffect)) {
-                  let panel = !tr.state.facet(lintConfig).autoPanel ? value.panel : effect.value.length ? LintPanel.open : null;
-                  value = LintState.init(effect.value, panel, tr.state);
-              }
-              else if (effect.is(togglePanel)) {
-                  value = new LintState(value.diagnostics, effect.value ? LintPanel.open : null, value.selected);
-              }
-              else if (effect.is(movePanelSelection)) {
-                  value = new LintState(value.diagnostics, value.panel, effect.value);
-              }
-          }
-          return value;
-      },
-      provide: f => [showPanel.from(f, val => val.panel),
-          EditorView.decorations.from(f, s => s.diagnostics)]
-  });
-  const activeMark = /*@__PURE__*/Decoration.mark({ class: "cm-lintRange cm-lintRange-active" });
-  function lintTooltip(view, pos, side) {
-      let { diagnostics } = view.state.field(lintState);
-      let found, start = -1, end = -1;
-      diagnostics.between(pos - (side < 0 ? 1 : 0), pos + (side > 0 ? 1 : 0), (from, to, { spec }) => {
-          if (pos >= from && pos <= to &&
-              (from == to || ((pos > from || side > 0) && (pos < to || side < 0)))) {
-              found = spec.diagnostics;
-              start = from;
-              end = to;
-              return false;
-          }
-      });
-      let diagnosticFilter = view.state.facet(lintConfig).tooltipFilter;
-      if (found && diagnosticFilter)
-          found = diagnosticFilter(found, view.state);
-      if (!found)
-          return null;
-      return {
-          pos: start,
-          end: end,
-          above: view.state.doc.lineAt(start).to < end,
-          create() {
-              return { dom: diagnosticsTooltip(view, found) };
-          }
-      };
-  }
-  function diagnosticsTooltip(view, diagnostics) {
-      return crelt("ul", { class: "cm-tooltip-lint" }, diagnostics.map(d => renderDiagnostic(view, d, false)));
-  }
-  /**
-  Command to open and focus the lint panel.
-  */
-  const openLintPanel = (view) => {
-      let field = view.state.field(lintState, false);
-      if (!field || !field.panel)
-          view.dispatch({ effects: maybeEnableLint(view.state, [togglePanel.of(true)]) });
-      let panel = getPanel(view, LintPanel.open);
-      if (panel)
-          panel.dom.querySelector(".cm-panel-lint ul").focus();
-      return true;
-  };
-  /**
-  Command to close the lint panel, when open.
-  */
-  const closeLintPanel = (view) => {
-      let field = view.state.field(lintState, false);
-      if (!field || !field.panel)
-          return false;
-      view.dispatch({ effects: togglePanel.of(false) });
-      return true;
-  };
-  /**
-  Move the selection to the next diagnostic.
-  */
-  const nextDiagnostic = (view) => {
-      let field = view.state.field(lintState, false);
-      if (!field)
-          return false;
-      let sel = view.state.selection.main, next = field.diagnostics.iter(sel.to + 1);
-      if (!next.value) {
-          next = field.diagnostics.iter(0);
-          if (!next.value || next.from == sel.from && next.to == sel.to)
-              return false;
-      }
-      view.dispatch({ selection: { anchor: next.from, head: next.to }, scrollIntoView: true });
-      return true;
-  };
-  /**
-  A set of default key bindings for the lint functionality.
-
-  - Ctrl-Shift-m (Cmd-Shift-m on macOS): [`openLintPanel`](https://codemirror.net/6/docs/ref/#lint.openLintPanel)
-  - F8: [`nextDiagnostic`](https://codemirror.net/6/docs/ref/#lint.nextDiagnostic)
-  */
-  const lintKeymap = [
-      { key: "Mod-Shift-m", run: openLintPanel, preventDefault: true },
-      { key: "F8", run: nextDiagnostic }
-  ];
-  const lintPlugin = /*@__PURE__*/ViewPlugin.fromClass(class {
-      constructor(view) {
-          this.view = view;
-          this.timeout = -1;
-          this.set = true;
-          let { delay } = view.state.facet(lintConfig);
-          this.lintTime = Date.now() + delay;
-          this.run = this.run.bind(this);
-          this.timeout = setTimeout(this.run, delay);
-      }
-      run() {
-          clearTimeout(this.timeout);
-          let now = Date.now();
-          if (now < this.lintTime - 10) {
-              this.timeout = setTimeout(this.run, this.lintTime - now);
-          }
-          else {
-              this.set = false;
-              let { state } = this.view, { sources } = state.facet(lintConfig);
-              if (sources.length)
-                  batchResults(sources.map(s => Promise.resolve(s(this.view))), annotations => {
-                      if (this.view.state.doc == state.doc)
-                          this.view.dispatch(setDiagnostics(this.view.state, annotations.reduce((a, b) => a.concat(b))));
-                  }, error => { logException(this.view.state, error); });
-          }
-      }
-      update(update) {
-          let config = update.state.facet(lintConfig);
-          if (update.docChanged || config != update.startState.facet(lintConfig) ||
-              config.needsRefresh && config.needsRefresh(update)) {
-              this.lintTime = Date.now() + config.delay;
-              if (!this.set) {
-                  this.set = true;
-                  this.timeout = setTimeout(this.run, config.delay);
-              }
-          }
-      }
-      force() {
-          if (this.set) {
-              this.lintTime = Date.now();
-              this.run();
-          }
-      }
-      destroy() {
-          clearTimeout(this.timeout);
-      }
-  });
-  function batchResults(promises, sink, error) {
-      let collected = [], timeout = -1;
-      for (let p of promises)
-          p.then(value => {
-              collected.push(value);
-              clearTimeout(timeout);
-              if (collected.length == promises.length)
-                  sink(collected);
-              else
-                  timeout = setTimeout(() => sink(collected), 200);
-          }, error);
-  }
-  const lintConfig = /*@__PURE__*/Facet.define({
-      combine(input) {
-          return Object.assign({ sources: input.map(i => i.source).filter(x => x != null) }, combineConfig(input.map(i => i.config), {
-              delay: 750,
-              markerFilter: null,
-              tooltipFilter: null,
-              needsRefresh: null,
-              hideOn: () => null,
-          }, {
-              needsRefresh: (a, b) => !a ? b : !b ? a : u => a(u) || b(u)
-          }));
-      }
-  });
-  /**
-  Given a diagnostic source, this function returns an extension that
-  enables linting with that source. It will be called whenever the
-  editor is idle (after its content changed). If `null` is given as
-  source, this only configures the lint extension.
-  */
-  function linter(source, config = {}) {
-      return [
-          lintConfig.of({ source, config }),
-          lintPlugin,
-          lintExtensions
-      ];
-  }
-  function assignKeys(actions) {
-      let assigned = [];
-      if (actions)
-          actions: for (let { name } of actions) {
-              for (let i = 0; i < name.length; i++) {
-                  let ch = name[i];
-                  if (/[a-zA-Z]/.test(ch) && !assigned.some(c => c.toLowerCase() == ch.toLowerCase())) {
-                      assigned.push(ch);
-                      continue actions;
-                  }
-              }
-              assigned.push("");
-          }
-      return assigned;
-  }
-  function renderDiagnostic(view, diagnostic, inPanel) {
-      var _a;
-      let keys = inPanel ? assignKeys(diagnostic.actions) : [];
-      return crelt("li", { class: "cm-diagnostic cm-diagnostic-" + diagnostic.severity }, crelt("span", { class: "cm-diagnosticText" }, diagnostic.renderMessage ? diagnostic.renderMessage(view) : diagnostic.message), (_a = diagnostic.actions) === null || _a === void 0 ? void 0 : _a.map((action, i) => {
-          let fired = false, click = (e) => {
-              e.preventDefault();
-              if (fired)
-                  return;
-              fired = true;
-              let found = findDiagnostic(view.state.field(lintState).diagnostics, diagnostic);
-              if (found)
-                  action.apply(view, found.from, found.to);
-          };
-          let { name } = action, keyIndex = keys[i] ? name.indexOf(keys[i]) : -1;
-          let nameElt = keyIndex < 0 ? name : [name.slice(0, keyIndex),
-              crelt("u", name.slice(keyIndex, keyIndex + 1)),
-              name.slice(keyIndex + 1)];
-          return crelt("button", {
-              type: "button",
-              class: "cm-diagnosticAction",
-              onclick: click,
-              onmousedown: click,
-              "aria-label": ` Action: ${name}${keyIndex < 0 ? "" : ` (access key "${keys[i]})"`}.`
-          }, nameElt);
-      }), diagnostic.source && crelt("div", { class: "cm-diagnosticSource" }, diagnostic.source));
-  }
-  class DiagnosticWidget extends WidgetType {
-      constructor(sev) {
-          super();
-          this.sev = sev;
-      }
-      eq(other) { return other.sev == this.sev; }
-      toDOM() {
-          return crelt("span", { class: "cm-lintPoint cm-lintPoint-" + this.sev });
-      }
-  }
-  class PanelItem {
-      constructor(view, diagnostic) {
-          this.diagnostic = diagnostic;
-          this.id = "item_" + Math.floor(Math.random() * 0xffffffff).toString(16);
-          this.dom = renderDiagnostic(view, diagnostic, true);
-          this.dom.id = this.id;
-          this.dom.setAttribute("role", "option");
-      }
-  }
-  class LintPanel {
-      constructor(view) {
-          this.view = view;
-          this.items = [];
-          let onkeydown = (event) => {
-              if (event.keyCode == 27) { // Escape
-                  closeLintPanel(this.view);
-                  this.view.focus();
-              }
-              else if (event.keyCode == 38 || event.keyCode == 33) { // ArrowUp, PageUp
-                  this.moveSelection((this.selectedIndex - 1 + this.items.length) % this.items.length);
-              }
-              else if (event.keyCode == 40 || event.keyCode == 34) { // ArrowDown, PageDown
-                  this.moveSelection((this.selectedIndex + 1) % this.items.length);
-              }
-              else if (event.keyCode == 36) { // Home
-                  this.moveSelection(0);
-              }
-              else if (event.keyCode == 35) { // End
-                  this.moveSelection(this.items.length - 1);
-              }
-              else if (event.keyCode == 13) { // Enter
-                  this.view.focus();
-              }
-              else if (event.keyCode >= 65 && event.keyCode <= 90 && this.selectedIndex >= 0) { // A-Z
-                  let { diagnostic } = this.items[this.selectedIndex], keys = assignKeys(diagnostic.actions);
-                  for (let i = 0; i < keys.length; i++)
-                      if (keys[i].toUpperCase().charCodeAt(0) == event.keyCode) {
-                          let found = findDiagnostic(this.view.state.field(lintState).diagnostics, diagnostic);
-                          if (found)
-                              diagnostic.actions[i].apply(view, found.from, found.to);
-                      }
-              }
-              else {
-                  return;
-              }
-              event.preventDefault();
-          };
-          let onclick = (event) => {
-              for (let i = 0; i < this.items.length; i++) {
-                  if (this.items[i].dom.contains(event.target))
-                      this.moveSelection(i);
-              }
-          };
-          this.list = crelt("ul", {
-              tabIndex: 0,
-              role: "listbox",
-              "aria-label": this.view.state.phrase("Diagnostics"),
-              onkeydown,
-              onclick
-          });
-          this.dom = crelt("div", { class: "cm-panel-lint" }, this.list, crelt("button", {
-              type: "button",
-              name: "close",
-              "aria-label": this.view.state.phrase("close"),
-              onclick: () => closeLintPanel(this.view)
-          }, "×"));
-          this.update();
-      }
-      get selectedIndex() {
-          let selected = this.view.state.field(lintState).selected;
-          if (!selected)
-              return -1;
-          for (let i = 0; i < this.items.length; i++)
-              if (this.items[i].diagnostic == selected.diagnostic)
-                  return i;
-          return -1;
-      }
-      update() {
-          let { diagnostics, selected } = this.view.state.field(lintState);
-          let i = 0, needsSync = false, newSelectedItem = null;
-          let seen = new Set();
-          diagnostics.between(0, this.view.state.doc.length, (_start, _end, { spec }) => {
-              for (let diagnostic of spec.diagnostics) {
-                  if (seen.has(diagnostic))
-                      continue;
-                  seen.add(diagnostic);
-                  let found = -1, item;
-                  for (let j = i; j < this.items.length; j++)
-                      if (this.items[j].diagnostic == diagnostic) {
-                          found = j;
-                          break;
-                      }
-                  if (found < 0) {
-                      item = new PanelItem(this.view, diagnostic);
-                      this.items.splice(i, 0, item);
-                      needsSync = true;
-                  }
-                  else {
-                      item = this.items[found];
-                      if (found > i) {
-                          this.items.splice(i, found - i);
-                          needsSync = true;
-                      }
-                  }
-                  if (selected && item.diagnostic == selected.diagnostic) {
-                      if (!item.dom.hasAttribute("aria-selected")) {
-                          item.dom.setAttribute("aria-selected", "true");
-                          newSelectedItem = item;
-                      }
-                  }
-                  else if (item.dom.hasAttribute("aria-selected")) {
-                      item.dom.removeAttribute("aria-selected");
-                  }
-                  i++;
-              }
-          });
-          while (i < this.items.length && !(this.items.length == 1 && this.items[0].diagnostic.from < 0)) {
-              needsSync = true;
-              this.items.pop();
-          }
-          if (this.items.length == 0) {
-              this.items.push(new PanelItem(this.view, {
-                  from: -1, to: -1,
-                  severity: "info",
-                  message: this.view.state.phrase("No diagnostics")
-              }));
-              needsSync = true;
-          }
-          if (newSelectedItem) {
-              this.list.setAttribute("aria-activedescendant", newSelectedItem.id);
-              this.view.requestMeasure({
-                  key: this,
-                  read: () => ({ sel: newSelectedItem.dom.getBoundingClientRect(), panel: this.list.getBoundingClientRect() }),
-                  write: ({ sel, panel }) => {
-                      let scaleY = panel.height / this.list.offsetHeight;
-                      if (sel.top < panel.top)
-                          this.list.scrollTop -= (panel.top - sel.top) / scaleY;
-                      else if (sel.bottom > panel.bottom)
-                          this.list.scrollTop += (sel.bottom - panel.bottom) / scaleY;
-                  }
-              });
-          }
-          else if (this.selectedIndex < 0) {
-              this.list.removeAttribute("aria-activedescendant");
-          }
-          if (needsSync)
-              this.sync();
-      }
-      sync() {
-          let domPos = this.list.firstChild;
-          function rm() {
-              let prev = domPos;
-              domPos = prev.nextSibling;
-              prev.remove();
-          }
-          for (let item of this.items) {
-              if (item.dom.parentNode == this.list) {
-                  while (domPos != item.dom)
-                      rm();
-                  domPos = item.dom.nextSibling;
-              }
-              else {
-                  this.list.insertBefore(item.dom, domPos);
-              }
-          }
-          while (domPos)
-              rm();
-      }
-      moveSelection(selectedIndex) {
-          if (this.selectedIndex < 0)
-              return;
-          let field = this.view.state.field(lintState);
-          let selection = findDiagnostic(field.diagnostics, this.items[selectedIndex].diagnostic);
-          if (!selection)
-              return;
-          this.view.dispatch({
-              selection: { anchor: selection.from, head: selection.to },
-              scrollIntoView: true,
-              effects: movePanelSelection.of(selection)
-          });
-      }
-      static open(view) { return new LintPanel(view); }
-  }
-  function svg(content, attrs = `viewBox="0 0 40 40"`) {
-      return `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${encodeURIComponent(content)}</svg>')`;
-  }
-  function underline(color) {
-      return svg(`<path d="m0 2.5 l2 -1.5 l1 0 l2 1.5 l1 0" stroke="${color}" fill="none" stroke-width=".7"/>`, `width="6" height="3"`);
-  }
-  const baseTheme = /*@__PURE__*/EditorView.baseTheme({
-      ".cm-diagnostic": {
-          padding: "3px 6px 3px 8px",
-          marginLeft: "-1px",
-          display: "block",
-          whiteSpace: "pre-wrap"
-      },
-      ".cm-diagnostic-error": { borderLeft: "5px solid #d11" },
-      ".cm-diagnostic-warning": { borderLeft: "5px solid orange" },
-      ".cm-diagnostic-info": { borderLeft: "5px solid #999" },
-      ".cm-diagnostic-hint": { borderLeft: "5px solid #66d" },
-      ".cm-diagnosticAction": {
-          font: "inherit",
-          border: "none",
-          padding: "2px 4px",
-          backgroundColor: "#444",
-          color: "white",
-          borderRadius: "3px",
-          marginLeft: "8px",
-          cursor: "pointer"
-      },
-      ".cm-diagnosticSource": {
-          fontSize: "70%",
-          opacity: .7
-      },
-      ".cm-lintRange": {
-          backgroundPosition: "left bottom",
-          backgroundRepeat: "repeat-x",
-          paddingBottom: "0.7px",
-      },
-      ".cm-lintRange-error": { backgroundImage: /*@__PURE__*/underline("#d11") },
-      ".cm-lintRange-warning": { backgroundImage: /*@__PURE__*/underline("orange") },
-      ".cm-lintRange-info": { backgroundImage: /*@__PURE__*/underline("#999") },
-      ".cm-lintRange-hint": { backgroundImage: /*@__PURE__*/underline("#66d") },
-      ".cm-lintRange-active": { backgroundColor: "#ffdd9980" },
-      ".cm-tooltip-lint": {
-          padding: 0,
-          margin: 0
-      },
-      ".cm-lintPoint": {
-          position: "relative",
-          "&:after": {
-              content: '""',
-              position: "absolute",
-              bottom: 0,
-              left: "-2px",
-              borderLeft: "3px solid transparent",
-              borderRight: "3px solid transparent",
-              borderBottom: "4px solid #d11"
-          }
-      },
-      ".cm-lintPoint-warning": {
-          "&:after": { borderBottomColor: "orange" }
-      },
-      ".cm-lintPoint-info": {
-          "&:after": { borderBottomColor: "#999" }
-      },
-      ".cm-lintPoint-hint": {
-          "&:after": { borderBottomColor: "#66d" }
-      },
-      ".cm-panel.cm-panel-lint": {
-          position: "relative",
-          "& ul": {
-              maxHeight: "100px",
-              overflowY: "auto",
-              "& [aria-selected]": {
-                  backgroundColor: "#ddd",
-                  "& u": { textDecoration: "underline" }
-              },
-              "&:focus [aria-selected]": {
-                  background_fallback: "#bdf",
-                  backgroundColor: "Highlight",
-                  color_fallback: "white",
-                  color: "HighlightText"
-              },
-              "& u": { textDecoration: "none" },
-              padding: 0,
-              margin: 0
-          },
-          "& [name=close]": {
-              position: "absolute",
-              top: "0",
-              right: "2px",
-              background: "inherit",
-              border: "none",
-              font: "inherit",
-              padding: 0,
-              margin: 0
-          }
-      }
-  });
-  function severityWeight(sev) {
-      return sev == "error" ? 4 : sev == "warning" ? 3 : sev == "info" ? 2 : 1;
-  }
-  function maxSeverity(diagnostics) {
-      let sev = "hint", weight = 1;
-      for (let d of diagnostics) {
-          let w = severityWeight(d.severity);
-          if (w > weight) {
-              weight = w;
-              sev = d.severity;
-          }
-      }
-      return sev;
-  }
-  const lintExtensions = [
-      lintState,
-      /*@__PURE__*/EditorView.decorations.compute([lintState], state => {
-          let { selected, panel } = state.field(lintState);
-          return !selected || !panel || selected.from == selected.to ? Decoration.none : Decoration.set([
-              activeMark.range(selected.from, selected.to)
-          ]);
-      }),
-      /*@__PURE__*/hoverTooltip(lintTooltip, { hideOn: hideTooltip }),
-      baseTheme
-  ];
-
-  // (The superfluous function calls around the list of extensions work
-  // around current limitations in tree-shaking software.)
-  /**
-  This is an extension value that just pulls together a number of
-  extensions that you might want in a basic editor. It is meant as a
-  convenient helper to quickly set up CodeMirror without installing
-  and importing a lot of separate packages.
-
-  Specifically, it includes...
-
-   - [the default command bindings](https://codemirror.net/6/docs/ref/#commands.defaultKeymap)
-   - [line numbers](https://codemirror.net/6/docs/ref/#view.lineNumbers)
-   - [special character highlighting](https://codemirror.net/6/docs/ref/#view.highlightSpecialChars)
-   - [the undo history](https://codemirror.net/6/docs/ref/#commands.history)
-   - [a fold gutter](https://codemirror.net/6/docs/ref/#language.foldGutter)
-   - [custom selection drawing](https://codemirror.net/6/docs/ref/#view.drawSelection)
-   - [drop cursor](https://codemirror.net/6/docs/ref/#view.dropCursor)
-   - [multiple selections](https://codemirror.net/6/docs/ref/#state.EditorState^allowMultipleSelections)
-   - [reindentation on input](https://codemirror.net/6/docs/ref/#language.indentOnInput)
-   - [the default highlight style](https://codemirror.net/6/docs/ref/#language.defaultHighlightStyle) (as fallback)
-   - [bracket matching](https://codemirror.net/6/docs/ref/#language.bracketMatching)
-   - [bracket closing](https://codemirror.net/6/docs/ref/#autocomplete.closeBrackets)
-   - [autocompletion](https://codemirror.net/6/docs/ref/#autocomplete.autocompletion)
-   - [rectangular selection](https://codemirror.net/6/docs/ref/#view.rectangularSelection) and [crosshair cursor](https://codemirror.net/6/docs/ref/#view.crosshairCursor)
-   - [active line highlighting](https://codemirror.net/6/docs/ref/#view.highlightActiveLine)
-   - [active line gutter highlighting](https://codemirror.net/6/docs/ref/#view.highlightActiveLineGutter)
-   - [selection match highlighting](https://codemirror.net/6/docs/ref/#search.highlightSelectionMatches)
-   - [search](https://codemirror.net/6/docs/ref/#search.searchKeymap)
-   - [linting](https://codemirror.net/6/docs/ref/#lint.lintKeymap)
-
-  (You'll probably want to add some language package to your setup
-  too.)
-
-  This extension does not allow customization. The idea is that,
-  once you decide you want to configure your editor more precisely,
-  you take this package's source (which is just a bunch of imports
-  and an array literal), copy it into your own code, and adjust it
-  as desired.
-  */
-  const basicSetup = /*@__PURE__*/(() => [
-      lineNumbers(),
-      highlightActiveLineGutter(),
-      highlightSpecialChars(),
-      history(),
-      foldGutter(),
-      drawSelection(),
-      dropCursor(),
-      EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion(),
-      rectangularSelection(),
-      crosshairCursor(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
-      keymap.of([
-          ...closeBracketsKeymap,
-          ...defaultKeymap,
-          ...searchKeymap,
-          ...historyKeymap,
-          ...foldKeymap,
-          ...completionKeymap,
-          ...lintKeymap
-      ])
-  ])();
 
   /**
   A parse stack. These are used internally by the parser to track
@@ -27433,12 +27238,29 @@ var cm = (function (exports) {
   exports.HighlightStyle = HighlightStyle;
   exports.Prec = Prec;
   exports.autocompletion = autocompletion;
-  exports.basicSetup = basicSetup;
+  exports.bracketMatching = bracketMatching;
+  exports.closeBrackets = closeBrackets;
+  exports.closeBracketsKeymap = closeBracketsKeymap;
+  exports.completionKeymap = completionKeymap;
   exports.defaultKeymap = defaultKeymap;
+  exports.drawSelection = drawSelection;
+  exports.dropCursor = dropCursor;
+  exports.foldGutter = foldGutter;
+  exports.foldKeymap = foldKeymap;
+  exports.highlightActiveLine = highlightActiveLine;
+  exports.highlightActiveLineGutter = highlightActiveLineGutter;
+  exports.highlightSelectionMatches = highlightSelectionMatches;
+  exports.highlightSpecialChars = highlightSpecialChars;
+  exports.history = history;
+  exports.historyKeymap = historyKeymap;
+  exports.indentOnInput = indentOnInput;
   exports.indentUnit = indentUnit;
   exports.javascript = javascript;
   exports.keymap = keymap;
+  exports.lineNumbers = lineNumbers;
+  exports.lintKeymap = lintKeymap;
   exports.linter = linter;
+  exports.searchKeymap = searchKeymap;
   exports.syntaxHighlighting = syntaxHighlighting;
   exports.syntaxTree = syntaxTree;
   exports.tags = tags;
