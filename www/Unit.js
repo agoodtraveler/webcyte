@@ -147,6 +147,6 @@ class Unit {
 
     clearUI() {
         this.prefixDiv.innerHTML = '';
-        this.postfixDiv.innerHTML = '';
+        this.suffixDiv.innerHTML = '';
     }
 }

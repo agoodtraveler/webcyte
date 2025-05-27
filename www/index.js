@@ -27,7 +27,7 @@ const mainDiv = document.getElementById('main');
 const runUnit = (unit) => {
     try {
         const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', ...units.map(u => u.name), unit.code);
-        unit.clearUI;
+        unit.clearUI();
         fn(unit.self, weights, unit.prefixDiv, unit.suffixDiv, ...units.map(u => u.self));
     } catch (error) {
         const message = error.message;
