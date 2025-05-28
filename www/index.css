@@ -1,6 +1,6 @@
 :root {
     --bgColor: 		#282A36;
-    --logoColor: #869aa6;
+    --logoColor: #128f30;
     --textColor: 	#869aa6;
     --headerColor: #181d26;  
     --buttonBGColor: 		#2c3540;
@@ -10,7 +10,7 @@
     --controlsColor: #181d26;
     --borderColor: #3d4c5f;
     --btnSize: 1.5em;
-    --btnFontSize: 12pt;
+    --btnFontSize: 14pt;
 }
 
 
@@ -33,11 +33,11 @@ button {
     background-color: var(--buttonBGColor);
     color: var(--buttonTextColor);
     padding: 0px;
-    padding-block: 0px;
     border: 1pt;
     border-radius: 2pt;
-    line-height: var(--btnSize);
-    min-width: var(--btnSize);
+    font-size: var(--btnFontSize);
+    line-height: 0em;
+    padding: 4pt;
     transition: background-color 0.2s;
 }
 button:hover {
@@ -55,7 +55,9 @@ a {
 a:visited {
     color: cadetblue;
 }
-
+h1 {
+    margin-block-start: 0pt;
+}
 
 
 .header {
@@ -70,12 +72,15 @@ a:visited {
     background-color: var(--headerColor);
 }
 .header button {
-    padding: 2pt 8pt 2pt 8pt;
     margin-left: 0.5ch;
-    margin-right: 0.5ch;
+    padding: 2pt;
+    font-size: 12pt;
+}
+.header .logo {
+    color: var(--logoColor);
 }
 .header .title {
-    color: var(--logoColor);
+    margin-left: 1ch;
 }
 .header .controls {
     margin-left: 4ch;
@@ -83,13 +88,14 @@ a:visited {
 .header .links {
     flex-grow: 1;
     text-align: right;
+    font-size: small;
 }
 
 
 
 #main {
     position: absolute;
-    top: 2.1em;
+    top: 2.4em;
     bottom: 0px;
     left: 0px;
     width: 100%;
@@ -121,19 +127,14 @@ a:visited {
     border: 1pt solid var(--borderColor); */
     /* background-color: var(--controlsColor); */
 }
-.Unit .panel .controls button {
-    font-size: var(--btnFontSize);;
-    width: 1.5em;
-    line-height: 1.5em;
-}
 .Unit .panel .controls .title {
     writing-mode: sideways-lr;
     margin-top: 1ch;
     margin-bottom: 1ch;
-    font-weight: bold;
     line-height: 1.5em;
     min-height: 2ch;
     width: 1.5em;
+    letter-spacing: 1px;
     overflow: hidden;
 }
 .Unit .panel .controls .title.invalid {
@@ -144,6 +145,7 @@ a:visited {
 .Unit .contents {
     display: flex;
     flex-flow: column;
+    flex-grow: 1;
 }
 
 .Unit .contents .editor {
@@ -173,11 +175,18 @@ a:visited {
     display: flex;
     flex-flow: row;
     justify-content: left;
-    padding-top: 1em;
-    padding-bottom: 1em;
+    /* padding-top: 1em;
+    padding-bottom: 1em; */
 }
 .insert button {
     font-size: var(--btnFontSize);
     font-weight: bold;
     margin: 2pt;
+}
+
+
+.ionicon {
+    fill: currentColor;
+    stroke: currentColor;
+    height: 1.0em;
 }

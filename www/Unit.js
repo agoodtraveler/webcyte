@@ -20,7 +20,7 @@ class Unit {
         this.div = makeDiv('Unit');
         const panelDiv = this.div.appendChild(makeDiv('panel'));
         const controlsDiv = panelDiv.appendChild(makeDiv('controls'));
-        const runBtn = controlsDiv.appendChild(makeButton('▶', () => this.substrate.runUnit(this)));
+        const runBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg>', () => this.substrate.runUnit(this)));
         const nameDiv = controlsDiv.appendChild(makeDiv('title'));
         nameDiv.setAttribute('spellcheck', false);
         nameDiv.setAttribute('contenteditable', 'plaintext-only');
@@ -46,8 +46,9 @@ class Unit {
             }
             nameDiv.classList.remove('invalid');
         }
-        const delBtn = controlsDiv.appendChild(makeButton('❌', () => this.substrate.removeUnit(this)));
-        delBtn.style.marginTop = '2em';
+        const delBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#trashImg"></use></svg>', () => this.substrate.removeUnit(this)));
+        delBtn.style.marginTop = '1em';
+        delBtn.style.marginBottom = '1em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
         this.prefixDiv = contentsDiv.appendChild(makeDiv('prefixDiv'));
         const editorDiv = contentsDiv.appendChild(makeDiv('editor'));

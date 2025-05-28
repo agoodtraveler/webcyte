@@ -7,12 +7,13 @@ const makeDiv = (className) => {
     div.className = className;
     return div;
 }
-const makeButton = (title, onClick = () => console.log('onClick', title)) => {
+const makeButton = (titleOrHTML, onClick = () => console.log('onClick', titleOrHTML)) => {
     const btn = document.createElement('button');
     btn.onclick = onClick;
-    btn.innerText = title;
+    btn.innerHTML = titleOrHTML;
     return btn;
 }
+
 const makeCanvas = (width, height) => {
     const canvas = document.createElement('canvas');
     canvas.width = width;
@@ -54,11 +55,15 @@ window.onload = async () => {
 
 
 
+const runSubstrate = () => {
+    substrate.run();
+}
+
 const saveToFile = async () => {
     const url = URL.createObjectURL(new Blob([ await substrate.serialize() ], { type: 'application/json' }));
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
-    link.download = 'webcyte.json';
+    link.download = 'substrate.json';
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);

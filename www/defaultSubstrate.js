@@ -71,6 +71,7 @@ self.compute = (gridState) => {
 
 result.insertUnit('target', toCode((self, weights, prefixDiv, suffixDiv) => {
 self.targetCanvas = makeCanvas(params.grid_width, params.grid_height);
+self.targetCanvas.style.width = `${ params.grid_width * 4 }pt`;
 const targetCtx = self.targetCanvas.getContext('2d');
 targetCtx.font = `${ params.sample_height }px monospace`;
 const sampleMeasurements = targetCtx.measureText(params.sample);

@@ -18,7 +18,7 @@ class Substrate {
         const prefix = Unit.DEFAULT_NAME_PREFIX;
         let num = 0;
         let currName = `${ prefix }${ num }`;
-        while (units.find(x => x.name === currName)) {
+        while (this.units.find(x => x.name === currName)) {
             currName = `${ prefix }${ ++num }`
         }
         this.insertUnit(currName, Unit.DEFAULT_CODE, atIndex);
@@ -41,12 +41,19 @@ class Substrate {
         this.#updateInserts();
     }
 
+    run() {
+        for (let i = 0; i < this.units.length; ++i) {
+            const currUnit = this.units[i];
+            this.runUnit(currUnit);
+        }
+    }
+
     async serialize() {
         const dst = {
             weights: {},
             units: this.units.map((currUnit) => ({ name: currUnit.name, code: currUnit.code })),
         };
-        for (const currName in weights) {
+        for (const currName in this.weights) {
             const currWeights = this.weights[currName];
             dst.weights[currName] = {
                 isVariable: currWeights instanceof tf.Variable,
@@ -83,7 +90,7 @@ class Substrate {
             const currInsertDiv = this.div.appendChild(makeDiv('insert'));
             const order = i * 2;
             currInsertDiv.style.order = order;
-            currInsertDiv.appendChild(makeButton('+', () => this.insertNewUnit(i)));
+            currInsertDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#addImg"></use></svg>', () => this.insertNewUnit(i)));
         }
     }
 }

@@ -30,3 +30,7 @@ Neural Cellular Automata Playground
 - [TensorFlow.js](https://www.tensorflow.org/js): for running and training models:
 
     Loads from `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js`, but can also be bundled locally enabling the system to work completely 'offline'.
+
+- [ionicons](https://github.com/ionic-team/ionicons): for some icons.
+
+    Embedded in HTML as SVGs (with slight modifications).
