@@ -95,7 +95,7 @@ h1 {
 
 #main {
     position: absolute;
-    top: 2.4em;
+    top: 2.0em;
     bottom: 0px;
     left: 0px;
     width: 100%;
@@ -151,10 +151,6 @@ h1 {
 .Unit .contents .editor {
     display: flex;
     flex-flow: column;
-    border-radius: 2pt;
-    border: 1pt solid var(--borderColor);
-    /* resize: both;
-    overflow-y: auto; */
 }
 .cm-editor {
     flex: 1;
@@ -174,9 +170,9 @@ h1 {
     width: 100%;
     display: flex;
     flex-flow: row;
-    justify-content: left;
-    /* padding-top: 1em;
-    padding-bottom: 1em; */
+    justify-content: center;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
 }
 .insert button {
     font-size: var(--btnFontSize);
