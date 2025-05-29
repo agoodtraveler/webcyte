@@ -29,9 +29,10 @@ class Substrate {
             unit.clearUI();
             fn(unit.self, this.weights, unit.prefixDiv, unit.suffixDiv, ...this.units.map(x => x.self));
         } catch (error) {
-            const message = error.message;
-            const stackLines = error.stack?.split('\n');
-            console.log(message, stackLines[0]);
+            console.log(`unit: ${ unit.name }`, error);
+            // const message = error.message;
+            // const stackLines = error.stack?.split('\n');
+            // console.log(message, stackLines[0]);
         }
     }
     removeUnit(unit) {
@@ -90,7 +91,7 @@ class Substrate {
             const currInsertDiv = this.div.appendChild(makeDiv('insert'));
             const order = i * 2;
             currInsertDiv.style.order = order;
-            currInsertDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#addImg"></use></svg>', () => this.insertNewUnit(i)));
+            currInsertDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#addImg"></use></svg>', `Insert new unit at: ${ i }`, () => this.insertNewUnit(i)));
         }
     }
 }

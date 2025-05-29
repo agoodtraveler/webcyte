@@ -10,13 +10,29 @@ const makeDefaultSubstrate = () => {
 
 
 result.insertUnit('intro', toCode((self, weights, prefixDiv, suffixDiv) => {
-prefixDiv.innerHTML = `<h1>Parameters</h1>`;
+prefixDiv.innerHTML = `
+<h2>Hello World!</h2>
+<p>
+This is webcyte v0.1: it's good enough to <b>build</b>, <b>train</b> and <b>run</b> a re-implementation of the model described here: <a href="https://distill.pub/2020/growing-ca/" target="_blank">Growing Neural Cellular Automata (2020)</a>.
+</p>
+<p>
+
+</p>
+`;
+suffixDiv.innerHTML = `
+tfjs backend: ${ tf.getBackend() };  tfjs version: ${ tf.version.tfjs }
+`;
 }));
 
 
 
 result.insertUnit('params', toCode((self, weights, prefixDiv, suffixDiv) => {
-suffixDiv.innerHTML = ``;
+prefixDiv.innerHTML = `
+<h2>params</h2>
+<p>
+This unit defines parametes used throughout the substrate.  Changing values will affect the currently running grid, and model.
+</p>
+`;
 self.grid_width = 48;
 self.grid_height = self.grid_width;
 self.grid_depth = 16;
@@ -39,11 +55,16 @@ self.attractor_cost_threshold = 0.02
 
 self.brush_color = self.seed_color;
 self.brush_size = self.seed_size;
-suffixDiv.innerHTML = `done.`;
 }));
 
 
 result.insertUnit('weights', toCode((self, weights, prefixDiv, suffixDiv) => {
+prefixDiv.innerHTML = `
+<h2>weights</h2>
+<p>
+Weights are defined and initialized here.
+</p>
+`;
 const denseLayerShape = [ 1, 1, params.grid_depth * 3, params.dense_layer_size ];   // see compute() below, for why '3'
 const outputLayerShape = [ 1, 1, params.dense_layer_size,  params.grid_depth ];
 
@@ -70,34 +91,45 @@ self.compute = (gridState) => {
 
 
 result.insertUnit('target', toCode((self, weights, prefixDiv, suffixDiv) => {
-self.targetCanvas = makeCanvas(params.grid_width, params.grid_height);
-self.targetCanvas.style.width = `${ params.grid_width * 4 }pt`;
-const targetCtx = self.targetCanvas.getContext('2d');
+prefixDiv.innerHTML = `
+<h2>target</h2>
+<p>
+Define target state that we're training to construct.
+</p>
+`;
+self.canvas = makeCanvas(params.grid_width, params.grid_height);
+self.canvas.style.width = `${ params.grid_width * 4 }pt`;
+self.canvas.style.height = `${ params.grid_height * 4 }pt`;
+const targetCtx = self.canvas.getContext('2d');
 targetCtx.font = `${ params.sample_height }px monospace`;
 const sampleMeasurements = targetCtx.measureText(params.sample);
-targetCtx.clearRect(0, 0, self.targetCanvas.width, self.targetCanvas.height);
+targetCtx.clearRect(0, 0, self.canvas.width, self.canvas.height);
 targetCtx.fillStyle = '#000000FF';
 targetCtx.translate((params.grid_width) / 2, (params.grid_height) / 2);
 targetCtx.fillText(params.sample, -0.5 * sampleMeasurements.width, 0.5 * (params.sample_height - sampleMeasurements.fontBoundingBoxDescent));
 
-self.targetCanvas.onmousedown = (event) => {
-    const x = Math.floor((event.offsetX * params.grid_width) / self.targetCanvas.offsetWidth);
-    const y = Math.floor((event.offsetY * params.grid_height) / self.targetCanvas.offsetHeight);
+self.canvas.onmousedown = (event) => {
+    const x = Math.floor((event.offsetX * params.grid_width) / self.canvas.offsetWidth);
+    const y = Math.floor((event.offsetY * params.grid_height) / self.canvas.offsetHeight);
     const pixel = targetCtx.getImageData(x, y, 1, 1).data;
     self.brush_color = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
 }
-suffixDiv.appendChild(self.targetCanvas);
+suffixDiv.appendChild(self.canvas);
 }));
 
 
 
 result.insertUnit('cycle', toCode((self, weights, prefixDiv, suffixDiv) => {
+prefixDiv.innerHTML = `<h2>cycle</h2>
+<p>
+Simpulation step
+</p>`;
 const thresholdOp = tf.customGrad((tensor, save) => {
     save([ tensor ]);
     return {
         value: tensor.greater(params.live_threshold).cast('float32'),
         gradFunc: (dy, [ tensor ]) => {
-            const sigmoid = tensor.sub(this.model.liveThreshold).mul(20).sigmoid();
+            const sigmoid = tensor.sub(params.live_threshold).mul(20).sigmoid();
             const sigmoidGrad = sigmoid.mul(sigmoid.neg().add(1));
             return [ dy.mul(sigmoidGrad) ];
         }
@@ -116,6 +148,12 @@ self.cycle = (gridState) =>  tf.tidy(() => {
 
 
 result.insertUnit('learn', toCode((self, weights, prefixDiv, suffixDiv) => {
+prefixDiv.innerHTML = `
+<h2>learn</h2>
+<p>
+Training algorithm.
+</p>
+`;
 let optimizer = tf.train.adam();
 self.setLearningRate = (rate) => {
     tf.dispose(optimizer);
@@ -197,6 +235,12 @@ self.learn = () => {
 
 
 result.insertUnit('grid', toCode((self, weights, prefixDiv, suffixDiv) => {
+prefixDiv.innerHTML = `
+<h2>grid</h2>
+<p>
+Defines the grid where models train and run.
+</p>
+`;
 const paintCtx = makeCanvas(params.grid_width, params.grid_height).getContext('2d');
 const genSeedState = () => {
     paintCtx.clearRect(0, 0, paintCtx.canvas.width, paintCtx.canvas.height);
@@ -211,18 +255,18 @@ const genSeedState = () => {
 
 let gridState = tf.zeros([ 1, params.grid_height, params.grid_width, params.grid_depth ]);
 const seedState = genSeedState();
-const targetState = tf.tidy(() => tf.browser.fromPixels(self.targetCanvas, 4)
+const targetState = tf.tidy(() => tf.browser.fromPixels(target.canvas, 4)
     .cast('float32')
     .div(255.0)
     .expandDims(0));
 
 const render = async (ctx) => {
-    const rgbaTensor = tf.tidy(() => this.state.slice([ 0, 0, 0, 0 ], [ 1, -1, -1, 4 ])
+    const rgbaTensor = tf.tidy(() => gridState.slice([ 0, 0, 0, 0 ], [ 1, -1, -1, 4 ])
         .mul(255)
         .cast('int32'));
     const rgbaArray = new Uint8ClampedArray(await rgbaTensor.data());
     tf.dispose(rgbaTensor);
-    ctx.putImageData(new ImageData(rgbaArray, this.width, this.height), 0, 0);
+    ctx.putImageData(new ImageData(rgbaArray, params.grid_width, params.grid_height), 0, 0);
 }
 const renderLayer = async (ctx, layerNumber) => {
     const rgbaTensor = tf.tidy(() => gridState.slice([ 0, 0, 0, layerNumber ], [ 1, -1, -1, 1 ])
@@ -239,33 +283,36 @@ const clear = () => {
     gridState = tf.zeros([ 1, params.grid_height, params.grid_width, params.grid_depth ]);
 }
 const paint = (x, y, size, color) => {
-    paintCtx.clearRect(0, 0, this.width, this.height);
+    paintCtx.clearRect(0, 0, params.grid_width, params.grid_height);
     paintCtx.fillStyle = color;
     paintCtx.fillRect(x - (size / 2), y - (size / 2), size, size);
     const nextState = tf.tidy(() => {
-        const seedTensor = tf.browser.fromPixels(this.paintCtx.canvas, 4)
+        const seedTensor = tf.browser.fromPixels(paintCtx.canvas, 4)
             .cast('float32')
             .div(255.0);
-        const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ this.height, this.width, 1 ]);
+        const seedAlpha = seedTensor.slice([ 0, 0, 3 ], [ params.grid_height, params.grid_width, 1 ]);
         const notSeedMask = seedAlpha.less(0.5).cast('float32');
-        const seedState = seedTensor.concat(seedAlpha.tile([ 1, 1, this.depth - 4 ]), 2)
+        const seedState = seedTensor.concat(seedAlpha.tile([ 1, 1, params.grid_depth - 4 ]), 2)
             .expandDims(0);
-        return this.state.mul(notSeedMask).add(seedState);
+        return gridState.mul(notSeedMask).add(seedState);
     });
     tf.dispose(gridState);
     gridState = nextState;
 }
 
 const gridCanvas = makeCanvas(params.grid_width, params.grid_height);
+gridCanvas.style.width = `${ params.grid_width * 4 }pt`;
+gridCanvas.style.height = `${ params.grid_height * 4 }pt`;
 const gridCtx = gridCanvas.getContext('2d');
 gridCanvas.onmousedown = gridCanvas.onmousemove = (event) => {
     if (event.buttons & 1 === 1) {
         const x = Math.floor((event.offsetX * params.grid_width) / gridCanvas.offsetWidth);
         const y = Math.floor((event.offsetY * params.grid_height) / gridCanvas.offsetHeight);
-        grid.paint(x, y, self.brush_size, self.brush_color);
+        paint(x, y, params.brush_size, params.brush_color);
     }
-    render();
+    render(gridCtx);
 }
+suffixDiv.appendChild(gridCanvas);
 }));
 
 

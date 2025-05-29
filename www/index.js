@@ -7,8 +7,9 @@ const makeDiv = (className) => {
     div.className = className;
     return div;
 }
-const makeButton = (titleOrHTML, onClick = () => console.log('onClick', titleOrHTML)) => {
+const makeButton = (titleOrHTML, title, onClick = () => console.log('onClick', titleOrHTML)) => {
     const btn = document.createElement('button');
+    btn.setAttribute('title', title);
     btn.onclick = onClick;
     btn.innerHTML = titleOrHTML;
     return btn;

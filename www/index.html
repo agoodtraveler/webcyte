@@ -7,6 +7,9 @@
         <link rel="stylesheet" href="index.css">
     </head>
     <body>
+        
+        
+        
         <noscript>
             <div id="noscript">
                 <strong>ERROR!</strong>
@@ -14,6 +17,9 @@
                 <p>(webcyte requires JavaScript to function - make sure JavaScript is enabled, or try another browser.)</p>
             </div>
         </noscript>
+        
+        
+        
         <svg xmlns="http://www.w3.org/2000/svg"  style="display: none" hidden aria-hidden="true" focusable="false">
             <symbol id="logoImg">
                 <symbol id='logoCell'>
@@ -50,17 +56,16 @@
             <svg class="logo ionicon" viewBox="0 0 512 512"><use href="#logoImg"></use></svg>
             <span class="title">webcyte</span>
             <span class="controls">
-                <button onclick="runSubstrate()" style="margin-right: 4ch;"><svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg></button>
-                <button onclick="loadFromFile()"><svg class="ionicon" viewBox="0 0 512 512"><use href="#openImg"></use></svg></button>
-                <button onclick="saveToFile()"><svg class="ionicon" viewBox="0 0 512 512"><use href="#saveImg"></use></svg></button>
+                <button title="Run all units in this substrate." onclick="runSubstrate()" style="margin-right: 4ch;"><svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg></button>
+                <button title="Load substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon" viewBox="0 0 512 512"><use href="#openImg"></use></svg></button>
+                <button title="Download substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon" viewBox="0 0 512 512"><use href="#saveImg"></use></svg></button>
             </span>
             <span class="links">
                 <a href="https://github.com/" target="_blank">GitHub</a>
             </span>
         </span>
-        <div id="main">
 
-        </div>
+        <div id="main"></div>
 
 
 
