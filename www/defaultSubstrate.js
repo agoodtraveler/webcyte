@@ -13,10 +13,7 @@ result.insertUnit('intro', toCode((self, weights, prefixDiv, suffixDiv) => {
 prefixDiv.innerHTML = `
 <h2>Hello World!</h2>
 <p>
-This is webcyte v0.1: it's good enough to <b>build</b>, <b>train</b> and <b>run</b> a re-implementation of the model described here: <a href="https://distill.pub/2020/growing-ca/" target="_blank">Growing Neural Cellular Automata (2020)</a>.
-</p>
-<p>
-
+This is webcyte v0.1: it's good enough to <b>build</b>, <b>train</b> and <b>run</b> a custom implementation of a model like the one described here: <a href="https://distill.pub/2020/growing-ca/" target="_blank">Growing Neural Cellular Automata (2020)</a>.
 </p>
 `;
 suffixDiv.innerHTML = `
@@ -41,11 +38,12 @@ self.weight_init_min = -0.1;
 self.weight_init_max = 0.1;
 self.cell_firing_rate = 0.5;
 self.live_threshold = 0.1;
-self.sample = '🙂'; // '💾'; // '🌈'; // '🙂'; // '🤖'; // '🦎'; // '🌼';
+// 💾 🌈 🙂 🤖 🦎 🌼
+self.sample = '🙂'; // samples are rendered from emojis, which may be different on each platform.
 self.sample_height = 0.5 * self.grid_height;
 self.seed_color = '#FFFFFFFF';
 self.seed_size = 2;
-self.attractor_batch_max_count = 2;   // 4 nearly maxes out 8GB
+self.attractor_batch_max_count = 2;   // 4 nearly maxes out 8GB of VRAM
 
 self.epoch_length_min = 64;
 self.epoch_length_max = 96;
@@ -94,7 +92,7 @@ result.insertUnit('target', toCode((self, weights, prefixDiv, suffixDiv) => {
 prefixDiv.innerHTML = `
 <h2>target</h2>
 <p>
-Define target state that we're training to construct.
+Define target state that the model learns to construct.
 </p>
 `;
 self.canvas = makeCanvas(params.grid_width, params.grid_height);
@@ -112,7 +110,7 @@ self.canvas.onmousedown = (event) => {
     const x = Math.floor((event.offsetX * params.grid_width) / self.canvas.offsetWidth);
     const y = Math.floor((event.offsetY * params.grid_height) / self.canvas.offsetHeight);
     const pixel = targetCtx.getImageData(x, y, 1, 1).data;
-    self.brush_color = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
+    params.brush_color = `rgba(${ pixel[0] }, ${ pixel[1] }, ${ pixel[2] }, ${ pixel[3] })`;
 }
 suffixDiv.appendChild(self.canvas);
 }));

@@ -52,6 +52,7 @@ window.onload = async () => {
     }
     substrate = makeDefaultSubstrate();
     mainDiv.appendChild(substrate.div);
+    substrate.run();
 }
 
 

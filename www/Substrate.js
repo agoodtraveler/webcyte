@@ -25,9 +25,20 @@ class Substrate {
     }
     runUnit(unit) {
         try {
-            const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', ...this.units.map(x => x.name), unit.code);
+            const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'setTimeout', ...this.units.map(x => x.name), unit.code);
             unit.clearUI();
-            fn(unit.self, this.weights, unit.prefixDiv, unit.suffixDiv, ...this.units.map(x => x.self));
+            let timeout = null;
+            const setTimeoutProxy = (callbackFn, delay) => {
+                if (timeout !== null) {
+                    clearTimeout(timeout);
+                }
+                timeout = setTimeout(() => {
+                    timeout = null;
+                    callbackFn();
+                }, delay);
+                return timeout;
+            }
+            fn(unit.self, this.weights, unit.prefixDiv, unit.suffixDiv, setTimeoutProxy, ...this.units.map(x => x.self));
         } catch (error) {
             console.log(`unit: ${ unit.name }`, error);
             // const message = error.message;
