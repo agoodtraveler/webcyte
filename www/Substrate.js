@@ -1,5 +1,5 @@
 class Substrate {
-    weights = {};
+    vars = {};
     units = [];
     div = null;
     constructor() {
@@ -23,30 +23,8 @@ class Substrate {
         }
         this.insertUnit(currName, Unit.DEFAULT_CODE, atIndex);
     }
-    runUnit(unit) {
-        try {
-            const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'setTimeout', ...this.units.map(x => x.name), unit.code);
-            unit.clearUI();
-            let timeout = null;
-            const setTimeoutProxy = (callbackFn, delay) => {
-                if (timeout !== null) {
-                    clearTimeout(timeout);
-                }
-                timeout = setTimeout(() => {
-                    timeout = null;
-                    callbackFn();
-                }, delay);
-                return timeout;
-            }
-            fn(unit.self, this.weights, unit.prefixDiv, unit.suffixDiv, setTimeoutProxy, ...this.units.map(x => x.self));
-        } catch (error) {
-            console.log(`unit: ${ unit.name }`, error);
-            // const message = error.message;
-            // const stackLines = error.stack?.split('\n');
-            // console.log(message, stackLines[0]);
-        }
-    }
     removeUnit(unit) {
+        unit.cleanup();
         unit.div.parentElement.removeChild(unit.div);
         this.units.splice(this.units.indexOf(unit), 1);
         this.units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
@@ -54,20 +32,17 @@ class Substrate {
     }
 
     run() {
-        for (let i = 0; i < this.units.length; ++i) {
-            const currUnit = this.units[i];
-            this.runUnit(currUnit);
-        }
+        this.units.forEach(currUnit => currUnit.run());
     }
 
     async serialize() {
         const dst = {
-            weights: {},
+            vars: {},
             units: this.units.map((currUnit) => ({ name: currUnit.name, code: currUnit.code })),
         };
-        for (const currName in this.weights) {
-            const currWeights = this.weights[currName];
-            dst.weights[currName] = {
+        for (const currName in this.vars) {
+            const currWeights = this.vars[currName];
+            dst.vars[currName] = {
                 isVariable: currWeights instanceof tf.Variable,
                 value: await currWeights.array()
             };
@@ -76,20 +51,20 @@ class Substrate {
     }
     deserialize(jsonStr) {
         const src = JSON.parse(jsonStr);
-        for (let currName in this.weights) {
-            tf.dispose(this.weights[currName]);
-        }
-        this.weights = {};
         for (let i = 0; i < this.units.length; ++i) {
-            // unit.cleanup()
+            unit.cleanup();
         }
+        for (let currName in this.vars) {
+            tf.dispose(this.vars[currName]);
+        }
+        this.vars = {};
         this.units = [];
         this.div.innerHTML = '';
 
         for (const currName in src.weights) {
             const currSrcWeights = src.weights[currName];
             const tensor = tf.tensor(currSrcWeights.value);
-            this.weights[currName] = currSrcWeights.isVariable ? tf.variable(tensor) : tensor;
+            this.vars[currName] = currSrcWeights.isVariable ? tf.variable(tensor) : tensor;
         }
         src.units.forEach(currUnit => this.insertUnit(currUnit.name, currUnit.code));
     }

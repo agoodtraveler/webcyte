@@ -51,7 +51,7 @@ canvas {
     image-rendering: pixelated;
 }
 a {
-    color: lightblue;
+    color: var(--buttonTextColor);
 }
 a:visited {
     color: cadetblue;
@@ -73,23 +73,19 @@ h1, h2 {
     background-color: var(--headerColor);
 }
 .header button {
-    margin-left: 0.5ch;
     padding: 2pt;
     font-size: 12pt;
+    margin-right: 2ch;
 }
 .header .logo {
     color: var(--logoColor);
 }
 .header .title {
     margin-left: 1ch;
+    margin-right: 1ch;
 }
 .header .controls {
-    margin-left: 4ch;
-}
-.header .links {
-    flex-grow: 1;
-    text-align: right;
-    font-size: small;
+    flex: 1;
 }
 
 
@@ -180,5 +176,6 @@ h1, h2 {
 .ionicon {
     fill: currentColor;
     stroke: currentColor;
+    width: 1.0em;
     height: 1.0em;
 }

@@ -1,15 +1,12 @@
 # webcyte
-Neural Cellular Automata experiments.
+a project for exploring Neural Cellular Automata and other interesting computational models.
 
-**v0.1**: [webcyte.io](https://webcyte.io)
-
-
-
-## into
-
-**webcyte** is for studying Neutal Cellular Automata (NCA) and other interesting models of computation and Machine Learning (ML) approaches.
+The main drive (currently) is getting to an interesting, multi-model Substrate implementation.  
+The online environment ([webcyte.io](https://webcyte.io)) is developed to support the initial goal.  
 
 Currently it is good enough to **build**, **train** and **run** a custom implementation of a model like the one described here: [Growing Neural Cellular Automata (2020)](https://distill.pub/2020/growing-ca/).  
+
+[webcyte.io](https://webcyte.io)
 
 ## current
 **v0.1**: Proof Of Concept (POC) - good enough for a **demo**, runs training and inference.  
@@ -23,7 +20,7 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 
 **v0.5**: multi-model grid (several models interacting on same grid, possible addition of grid 'physics');  
 
-**v0.6**: UI and ergonomics refatoring (this is likely to be an ongoing task - adapting the system to the tasks);  
+**v0.6**: UI and ergonomics refatoring (this is likely to be an ongoing thing - adapting the system to the tasks);  
 
 **v0.7**: headless implementation for running on servers;  
 
@@ -31,9 +28,12 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 
 **v0.9**: inline help, smarter autocomplete, AI assist;  
 
-**v1.0**: profit! 
+**v1.0**: profit!  
+.  
+.  
+.  
+**v2.0**: attempt at more 'practical' applications
 
-        
 
 ## usage
 Available online: [webcyte.io](https://webcyte.io)  

@@ -57,15 +57,23 @@ window.onload = async () => {
 
 
 
+const showNavigator = () => {
+    console.log('show navigator');
+}
+
 const runSubstrate = () => {
     substrate.run();
 }
 
 const saveToFile = async () => {
-    const url = URL.createObjectURL(new Blob([ await substrate.serialize() ], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([ `const makeDefaultSubstrate = () => {
+        const substrate = new Substrate();
+        substrate.deserialize("${ (await substrate.serialize()).replaceAll('\\', '\\\\').replaceAll('"', '\\"') }");
+        return substrate;
+    }` ], { type: 'application/json' }));
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
-    link.download = 'substrate.json';
+    link.download = 'defaultSubstrate.js';
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);

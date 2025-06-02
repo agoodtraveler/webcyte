@@ -21,7 +21,7 @@
         
         
         <svg xmlns="http://www.w3.org/2000/svg"  style="display: none" hidden aria-hidden="true" focusable="false">
-            <symbol id="logoImg">
+            <symbol id="logoImg" viewBox="0 0 512 512">
                 <symbol id='logoCell'>
                     <rect fill='currentColor' width='128' height='128'/>
                 </symbol>
@@ -31,38 +31,41 @@
                 <use href='#logoCell' x='128' y='256'/>
                 <use href='#logoCell' x='0' y='256'/>
             </symbol>
-            <symbol id="saveImg">
+            <symbol id="saveImg" viewBox="0 0 512 512">
                 <path fill="currentColor" d="M380.44 32H64a32 32 0 00-32 32v384a32 32 0 0032 32h384a32.09 32.09 0 0032-32V131.56zM112 176v-64h192v64zm223.91 179.76a80 80 0 11-83.66-83.67 80.21 80.21 0 0183.66 83.67z"/>
             </symbol>
-            <symbol id="openImg">
+            <symbol id="openImg" viewBox="0 0 512 512">
                 <path fill="currentColor" d="M16.08 189.4l28.58 233.87A28 28 0 0072.52 448h367a28 28 0 0027.86-24.73l28.54-233.87A12 12 0 00484 176H28a12 12 0 00-11.92 13.4zM464 124a28 28 0 00-28-28H244.84l-48-32H76a28 28 0 00-28 28v52h416z"/>
             </symbol>
-            <symbol id="addImg">
+            <symbol id="addImg" viewBox="0 0 512 512">
                 <path fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round" stroke-width="32" d="M256 112v288M400 256H112"/>
             </symbol>
-            <symbol id="trashImg">
+            <symbol id="trashImg" viewBox="0 0 512 512">
                 <path fill="none" stroke="currentColor" d="M296 64h-80a7.91 7.91 0 00-8 8v24h96V72a7.91 7.91 0 00-8-8z"/>
                 <path fill="none" stroke="currentColor" d="M292 64h-72a4 4 0 00-4 4v28h80V68a4 4 0 00-4-4z" fill="none"/>
                 <path stroke="currentColor" d="M447.55 96H336V48a16 16 0 00-16-16H192a16 16 0 00-16 16v48H64.45L64 136h33l20.09 314A32 32 0 00149 480h214a32 32 0 0031.93-29.95L415 136h33zM176 416l-9-256h33l9 256zm96 0h-32V160h32zm24-320h-80V68a4 4 0 014-4h72a4 4 0 014 4zm40 320h-33l9-256h33z"/>
             </symbol>
-            <symbol id="playImg">
+            <symbol id="playImg" viewBox="0 0 512 512">
                 <path stroke="currentColor" d="M96 448l320-192L96 64v384z"/>
+            </symbol>
+            <symbol id="listImg" viewBox="0 0 512 512">
+                <path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="48" d="M144 144h320M144 256h320M144 368h320"/><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round" stroke-width="32" d="M64 128h32v32H64zM64 240h32v32H64zM64 352h32v32H64z"/>
             </symbol>
         </svg>
 
 
 
         <span class="header">
-            <svg class="logo ionicon" viewBox="0 0 512 512"><use href="#logoImg"></use></svg>
-            <span class="title">webcyte</span>
             <span class="controls">
-                <button title="Run all units in this substrate." onclick="runSubstrate()" style="margin-right: 4ch;"><svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg></button>
-                <button title="Load substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon" viewBox="0 0 512 512"><use href="#openImg"></use></svg></button>
-                <button title="Download substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon" viewBox="0 0 512 512"><use href="#saveImg"></use></svg></button>
+<!--
+                <button title="List Units in current Substrate." onclick="showNavigator()"><svg class="ionicon"><use href="#listImg"></use></svg></button>
+-->
+                <button title="Run all Units in this Substrate." style="margin-right: 4ch;" onclick="runSubstrate()"><svg class="ionicon"><use href="#playImg"></use></svg></button>
+                <button title="Load Substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon"><use href="#openImg"></use></svg></button>
+                <button title="Download Substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon"><use href="#saveImg"></use></svg></button>
             </span>
-            <span class="links">
-                <a href="https://github.com/" target="_blank">GitHub</a>
-            </span>
+            <span class="title">webcyte</span>
+            <svg class="logo ionicon" viewBox="0 0 512 512"><use href="#logoImg"></use></svg>
         </span>
 
         <div id="main"></div>
