@@ -52,7 +52,7 @@ class Substrate {
     deserialize(jsonStr) {
         const src = JSON.parse(jsonStr);
         for (let i = 0; i < this.units.length; ++i) {
-            unit.cleanup();
+            this.units[i].cleanup();
         }
         for (let currName in this.vars) {
             tf.dispose(this.vars[currName]);

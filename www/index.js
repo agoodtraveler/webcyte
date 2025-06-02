@@ -1,4 +1,4 @@
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 
 
@@ -45,11 +45,8 @@ let substrate = null;
 
 window.onload = async () => {
     await tf.ready();
-    if (DEV_MODE) {
-        console.log('DEV_MODE: TFJS backend, version', tf.getBackend(), tf.version.tfjs);
-    } else {
-        tf.enableProdMode();
-    }
+    console.log(`webcyte v0.1:  DEV_MODE = ${ DEV_MODE}; TFJS backend, version`, tf.getBackend(), tf.version.tfjs);
+    // tf.enableProdMode();
     substrate = makeDefaultSubstrate();
     mainDiv.appendChild(substrate.div);
     substrate.run();
@@ -66,14 +63,21 @@ const runSubstrate = () => {
 }
 
 const saveToFile = async () => {
-    const url = URL.createObjectURL(new Blob([ `const makeDefaultSubstrate = () => {
-        const substrate = new Substrate();
-        substrate.deserialize("${ (await substrate.serialize()).replaceAll('\\', '\\\\').replaceAll('"', '\\"') }");
-        return substrate;
-    }` ], { type: 'application/json' }));
+    const makeURL = async () => {
+        if (DEV_MODE) { 
+            return URL.createObjectURL(new Blob([ `const makeDefaultSubstrate = () => {
+                const substrate = new Substrate();
+                substrate.deserialize("${ (await substrate.serialize()).replaceAll('\\', '\\\\').replaceAll('"', '\\"') }");
+                return substrate;
+            }` ], { type: 'application/json' }));
+        } else {
+            return URL.createObjectURL(new Blob([ await substrate.serialize() ], { type: 'application/json' }));
+        }
+    }
+    const url = await makeURL();
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
-    link.download = 'defaultSubstrate.js';
+    link.download = DEV_MODE ? 'defaultSubstrate.js' : 'substrate.json';
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);

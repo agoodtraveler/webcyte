@@ -29,10 +29,6 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 **v0.9**: inline help, smarter autocomplete, AI assist;  
 
 **v1.0**: profit!  
-.  
-.  
-.  
-**v2.0**: attempt at more 'practical' applications
 
 
 ## usage
