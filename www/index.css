@@ -145,6 +145,15 @@ h1, h2 {
     flex-grow: 1;
 }
 
+.Unit .contents .column {
+    display: flex;
+    flex-flow: column;
+}
+.Unit .contents .row {
+    display: flex;
+    flex-flow: row wrap;
+}
+
 .Unit .contents .editor {
     display: flex;
     flex-flow: column;

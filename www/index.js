@@ -1,4 +1,4 @@
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 
 
@@ -14,12 +14,78 @@ const makeButton = (titleOrHTML, title, onClick = () => console.log('onClick', t
     btn.innerHTML = titleOrHTML;
     return btn;
 }
-
 const makeCanvas = (width, height) => {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     return canvas;
+}
+const makeSlider = (min, max, onChangeFn) => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'range');
+    input.setAttribute('min', min);
+    input.setAttribute('max', max);
+    input.value = min;
+    input.oninput = () => onChangeFn();
+    return input;
+}
+
+const renderState = async (state, ctx) => {
+    const rgbaTensor = tf.tidy(() => state.slice([ 0, 0, 0, 0 ], [ 1, -1, -1, 4 ])
+        .mul(255)
+        .cast('int32'));
+    const rgbaArray = new Uint8ClampedArray(await rgbaTensor.data());
+    tf.dispose(rgbaTensor);
+    ctx.putImageData(new ImageData(rgbaArray, ctx.canvas.width, ctx.canvas.height), 0, 0);
+}
+const renderLayer = async (state, ctx, layerNumber = 0) => {
+    const rgbaTensor = tf.tidy(() => state.slice([ 0, 0, 0, layerNumber ], [ 1, -1, -1, 1 ])
+        .tile([ 1, 1, 1, 3 ])
+        .concat(tf.ones([ 1, ctx.canvas.height, ctx.canvas.width, 1 ]), 3)
+        .mul(255)
+        .cast('int32'));
+    const rgbaArray = new Uint8ClampedArray(await rgbaTensor.data());
+    tf.dispose(rgbaTensor);
+    ctx.putImageData(new ImageData(rgbaArray, ctx.canvas.width, ctx.canvas.height), 0, 0);
+}
+const drawCanvasOnState = (fromCanvas, toState) => tf.tidy(() => {
+    const rgbaTensor = tf.browser.fromPixels(fromCanvas, 4)
+        .cast('float32')
+        .div(255.0);
+    const alphaTensor = rgbaTensor.slice([ 0, 0, 3 ], [ fromCanvas.height, fromCanvas.width, 1 ]);
+    const maskTensor = alphaTensor.less(0.5).cast('float32');
+    const paintState = rgbaTensor.concat(alphaTensor.tile([ 1, 1, toState.shape[2] - 4 ]), 2)
+        .expandDims(0);
+    return toState.mul(maskTensor).add(paintState);
+});
+
+class StateView {
+    div = null;
+    ctx = null;
+    slider = null;
+    onChange = () => console.log('StateView slider onChange');
+    constructor(title, width, height, depth) {
+        this.div = makeDiv('column');
+        this.div.style.width = `${ width * 4 }pt`;
+        this.div.style.height = `${ height * 4 }pt}`;
+        this.div.appendChild(document.createElement('h3')).innerText = title;
+        this.ctx = this.div.appendChild(makeCanvas(width, height)).getContext('2d');
+        const controlsDiv = this.div.appendChild(makeDiv('row'));
+        const label = controlsDiv.appendChild(document.createElement('label'));
+        label.innerText = 'layer:';
+        label.setAttribute('for', 'layerSelector');
+        this.slider = controlsDiv.appendChild(makeSlider(0, depth, () => this.onChange()));
+        this.slider.style['flex'] = 1;
+        this.slider.setAttribute('name', 'layerSelector');
+        this.slider.setAttribute('title', 'Select layer to render (0 = composit RGBA, from first layers)');
+    }
+    async render(state) {
+        if (this.slider.value == 0) {
+            await renderState(state, this.ctx);
+        } else {
+            await renderLayer(state, this.ctx, this.slider.value - 1);
+        }
+    }
 }
 
 
@@ -46,7 +112,7 @@ let substrate = null;
 window.onload = async () => {
     await tf.ready();
     console.log(`webcyte v0.1:  DEV_MODE = ${ DEV_MODE}; TFJS backend, version`, tf.getBackend(), tf.version.tfjs);
-    // tf.enableProdMode();
+    // TODO: try 'tf.enableProdMode();'?
     substrate = makeDefaultSubstrate();
     mainDiv.appendChild(substrate.div);
     substrate.run();
