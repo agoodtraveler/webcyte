@@ -48,6 +48,9 @@
             <symbol id="playImg" viewBox="0 0 512 512">
                 <path stroke="currentColor" d="M96 448l320-192L96 64v384z"/>
             </symbol>
+            <symbol id="pauseImg" viewBox="0 0 512 512">
+                <path  fill="currentColor" d="M224 432h-80V80h80zM368 432h-80V80h80z"/>
+            </symbol>
             <symbol id="listImg" viewBox="0 0 512 512">
                 <path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="48" d="M144 144h320M144 256h320M144 368h320"/><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round" stroke-width="32" d="M64 128h32v32H64zM64 240h32v32H64zM64 352h32v32H64z"/>
             </symbol>
@@ -60,9 +63,9 @@
 <!--
                 <button title="List Units in current Substrate." onclick="showNavigator()"><svg class="ionicon"><use href="#listImg"></use></svg></button>
 -->
-                <button title="Run all Units in this Substrate." style="margin-right: 4ch;" onclick="runSubstrate()"><svg class="ionicon"><use href="#playImg"></use></svg></button>
-                <button title="Load Substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon"><use href="#openImg"></use></svg></button>
-                <button title="Download Substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon"><use href="#saveImg"></use></svg></button>
+                <button title="Run all units in this substrate." style="margin-right: 4ch;" onclick="runSubstrate()"><svg class="ionicon"><use href="#playImg"></use></svg></button>
+                <button title="Load substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon"><use href="#openImg"></use></svg></button>
+                <button title="Download substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon"><use href="#saveImg"></use></svg></button>
             </span>
             <span class="title">webcyte</span>
             <svg class="logo ionicon" viewBox="0 0 512 512"><use href="#logoImg"></use></svg>

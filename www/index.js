@@ -1,4 +1,5 @@
 const DEV_MODE = true;
+const VERSION = '0.1';
 
 
 
@@ -54,27 +55,40 @@ const drawCanvasOnState = (fromCanvas, toState) => tf.tidy(() => {
         .div(255.0);
     const alphaTensor = rgbaTensor.slice([ 0, 0, 3 ], [ fromCanvas.height, fromCanvas.width, 1 ]);
     const maskTensor = alphaTensor.less(0.5).cast('float32');
-    const paintState = rgbaTensor.concat(alphaTensor.tile([ 1, 1, toState.shape[2] - 4 ]), 2)
+    const paintState = rgbaTensor.concat(alphaTensor.tile([ 1, 1, toState.shape[3] - 4 ]), 2)
         .expandDims(0);
     return toState.mul(maskTensor).add(paintState);
 });
 
 class StateView {
+    static ZOOM_FACTOR = 4 * window.devicePixelRatio;
     div = null;
+    headerDiv = null;
     ctx = null;
     slider = null;
-    onChange = () => console.log('StateView slider onChange');
+    onChange = () => false;
+    onPointer = (x, y, buttons) => false;
     constructor(title, width, height, depth) {
         this.div = makeDiv('column');
-        this.div.style.width = `${ width * 4 }pt`;
-        this.div.style.height = `${ height * 4 }pt}`;
-        this.div.appendChild(document.createElement('h3')).innerText = title;
+        this.div.style.width = `${ width * StateView.ZOOM_FACTOR }px`;
+        this.div.style.height = `${ height * StateView.ZOOM_FACTOR }px}`;
+        this.headerDiv = this.div.appendChild(makeDiv('row'));
+        this.headerDiv.style['justify-content'] = 'space-between';
+        this.headerDiv.style['align-items'] = 'center';
+        this.headerDiv.appendChild(document.createElement('h3')).innerText = title;
         this.ctx = this.div.appendChild(makeCanvas(width, height)).getContext('2d');
+        this.ctx.canvas.onpointermove = this.ctx.canvas.onpointerdown = this.ctx.canvas.onponinterup = (event) => {
+            this.onPointer(event.offsetX / StateView.ZOOM_FACTOR, event.offsetY / StateView.ZOOM_FACTOR, event.buttons);
+        }
         const controlsDiv = this.div.appendChild(makeDiv('row'));
         const label = controlsDiv.appendChild(document.createElement('label'));
-        label.innerText = 'layer:';
+        label.innerText = 'layer: RGBA';
+        label.style.width = `${ label.innerText.length }ch`;
         label.setAttribute('for', 'layerSelector');
-        this.slider = controlsDiv.appendChild(makeSlider(0, depth, () => this.onChange()));
+        this.slider = controlsDiv.appendChild(makeSlider(0, depth, () => {
+            this.onChange();
+            label.innerHTML = `layer: ${ this.slider.value == 0 ? 'RGBA' : this.slider.value - 1 }`;
+        }));
         this.slider.style['flex'] = 1;
         this.slider.setAttribute('name', 'layerSelector');
         this.slider.setAttribute('title', 'Select layer to render (0 = composit RGBA, from first layers)');
@@ -85,6 +99,20 @@ class StateView {
         } else {
             await renderLayer(state, this.ctx, this.slider.value - 1);
         }
+    }
+}
+
+class EditableStateView extends StateView {
+    paintCtx = null;
+    constructor(title, width, height, depth) {
+        super(title, width, height, depth);
+        this.paintCtx = makeCanvas(width, height).getContext('2d');
+    }
+    paint(state, x, y, size, color) {
+        this.paintCtx.clearRect(0, 0, this.paintCtx.canvas.width, this.paintCtx.canvas.height);
+        this.paintCtx.fillStyle = color;
+        this.paintCtx.fillRect(x - (size / 2), y - (size / 2), size, size);
+        return drawCanvasOnState(this.paintCtx.canvas, state);
     }
 }
 

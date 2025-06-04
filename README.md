@@ -14,7 +14,7 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 ## next
 **v0.2**: ability to distribute computational Units across connected machines (e.g.remote training with local inference and sample collection);  
 
-**v0.3**: autocomplete, inline error/warning reporting, UI refactoring (to the point where webcyte is not less convenient than VSCode, or Jupyter for particular tasks);  
+**v0.3**: implementation of [Self-Organizing Textures](https://distill.pub/selforg/2021/textures/);  
 
 **v0.4**: WebGL model compiler and inference environment (enable more efficient inference, allowing model deployment without external dependencies);  
 

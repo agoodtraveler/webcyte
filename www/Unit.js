@@ -21,7 +21,7 @@ class Unit {
         this.div = makeDiv('Unit');
         const panelDiv = this.div.appendChild(makeDiv('panel'));
         const controlsDiv = panelDiv.appendChild(makeDiv('controls'));
-        const runBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg>', `Run unit: '${ this.name }'`, () => this.run()));
+        const runBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg>', `Run unit: '${ this.name }' ('Ctrl + Enter' hotkey in code editor)`, () => this.run()));
         const nameDiv = controlsDiv.appendChild(makeDiv('title'));
         nameDiv.setAttribute('spellcheck', false);
         nameDiv.setAttribute('contenteditable', 'plaintext-only');
