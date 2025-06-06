@@ -1,5 +1,4 @@
 class StateView {
-    static ZOOM_FACTOR = 4 * window.devicePixelRatio;
     state = null;
     div = null;
     headerDiv = null;
@@ -11,8 +10,6 @@ class StateView {
     constructor(state, title, isEditable = false) {
         this.state = state;
         this.div = makeDiv('column');
-        this.div.style.width = `${ state.width * StateView.ZOOM_FACTOR }px`;
-        this.div.style.height = `${ state.height * StateView.ZOOM_FACTOR }px}`;
         this.headerDiv = this.div.appendChild(makeDiv('row'));
         this.headerDiv.style['justify-content'] = 'space-between';
         this.headerDiv.style['align-items'] = 'center';
@@ -20,7 +17,9 @@ class StateView {
         this.ctx = this.div.appendChild(makeCanvas(state.width, state.height)).getContext('2d');
         this.ctx.canvas.onpointermove = this.ctx.canvas.onpointerdown = this.ctx.canvas.onponinterup = (event) => {
             if (this.onPointer) {
-                this.onPointer(event.offsetX / StateView.ZOOM_FACTOR, event.offsetY / StateView.ZOOM_FACTOR, event.buttons);
+                const x = this.ctx.canvas.offsetWidth / state.width;
+                const y = this.ctx.canvas.offsetHeight / state.height;
+                this.onPointer(event.offsetX / x, event.offsetY / y, event.buttons);
             }
         }
         const controlsDiv = this.div.appendChild(makeDiv('row'));

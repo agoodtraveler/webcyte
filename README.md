@@ -22,7 +22,7 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 
 **v0.6**: multi-model grid (multiple models interacting on same grid);  
 
-**v0.7**: UI and ergonomics refatoring;  
+**v0.7**: attempt at 3d ('voxel based') grids.  
 
 **v0.8**: library of Substrates and weights (collection of interesting models);  
 

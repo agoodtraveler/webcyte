@@ -61,8 +61,8 @@ class Substrate {
         this.units = [];
         this.div.innerHTML = '';
 
-        for (const currName in src.weights) {
-            const currSrcWeights = src.weights[currName];
+        for (const currName in src.vars) {
+            const currSrcWeights = src.vars[currName];
             const tensor = tf.tensor(currSrcWeights.value);
             this.vars[currName] = currSrcWeights.isVariable ? tf.variable(tensor) : tensor;
         }

@@ -8,7 +8,7 @@
     --buttonActiveBGColor: #000000;
     --buttonTextColor: #c1ceD9;
     --controlsColor: #181d26;
-    --borderColor: #3d4c5f;
+    --borderColor: #869aa6;
     --btnSize: 1.5em;
     --btnFontSize: 14pt;
 }
@@ -47,7 +47,12 @@ button:active {
     background-color: var(--buttonBGColor);
 }
 canvas {
-    border: 1pt solid var(--borderColor);
+    --s: 2ch;
+    border: 1pt solid var(--borderColor); 
+    mask: 
+        conic-gradient(#000 0 0) content-box,
+        conic-gradient(at var(--s) var(--s),#0000 75%,#000 0) 
+        0 0/calc(100% - var(--s)) calc(100% - var(--s));
     image-rendering: pixelated;
 }
 a {
@@ -56,8 +61,8 @@ a {
 a:visited {
     color: cadetblue;
 }
-h1, h2 {
-    margin-block-start: 0pt;
+h1, h2, h3 {
+    margin: 0pt;
 }
 
 
@@ -148,10 +153,12 @@ h1, h2 {
 .Unit .contents .column {
     display: flex;
     flex-flow: column;
+    padding: 1ch;
 }
 .Unit .contents .row {
     display: flex;
     flex-flow: row wrap;
+    padding: 1ch;
 }
 
 .Unit .contents .editor {

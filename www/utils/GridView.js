@@ -31,8 +31,6 @@ class GridView extends StateView {
             if (this.#isRunning) {
                 const dT = time - prevTime;
                 if (dT >= INFO_UPDATE_INTERVAL) {
-                    // const { numBytes, numTensors, numDataBuffers } = tf.memory();
-                    // `MEM: bytes = ${ numBytes }; tensors = ${ numTensors }; buffers = ${ numDataBuffers }  |  FPS: ${ Math.round(frameCount * (INFO_UPDATE_INTERVAL / dT)) }`;
                     this.FPS = Math.round(frameCount * (INFO_UPDATE_INTERVAL / dT));
                     frameCount = 0;
                     prevTime = time;
