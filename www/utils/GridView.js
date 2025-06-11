@@ -34,6 +34,7 @@ class GridView extends StateView {
                     this.FPS = Math.round(frameCount * (INFO_UPDATE_INTERVAL / dT));
                     frameCount = 0;
                     prevTime = time;
+                    console.log('FPS', this.FPS);
                 }
                 ++frameCount;
                 if (this.onFrame) {

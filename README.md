@@ -12,21 +12,21 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 **v0.1**: Proof Of Concept (POC) - good enough for a **demo**, runs training and inference.  
 
 ## next
-**v0.2**: ability to distribute computational units across connected machines (e.g.remote training with local inference and sample collection);  
+**v0.2**: remote training (running inference and training on two separate devices sharing substrate parameters and weights);  
 
 **v0.3**: implementation of [Self-Organizing Textures](https://distill.pub/selforg/2021/textures/);  
 
-**v0.4**: headless implementation for running on servers;  
+**v0.4**: headless implementation for running on servers (extend remote training);  
 
-**v0.5**: WebGL model compiler and inference environment (enable more efficient inference, allowing model deployment without external dependencies);
+**v0.5**: multi-model grid (multiple models interacting on same grid);  
 
-**v0.6**: multi-model grid (multiple models interacting on same grid);  
+**v0.6**: attempt at 3d ('voxel based') grids;  
 
-**v0.7**: attempt at 3d ('voxel based') grids.  
+**v0.7**: WebGL model compiler and inference environment (enable more efficient inference, allowing model deployment without external dependencies);
 
-**v0.8**: library of Substrates and weights (collection of interesting models);  
+**v0.8**:   
 
-**v0.9**: inline help, smarter autocomplete, AI assist;  
+**v0.9**: Collection of representative substrates (models) and unit/utility library;  
 
 **v1.0**: profit!  
 

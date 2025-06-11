@@ -1,6 +1,6 @@
 class Unit {
     static VALID_NAME_REGEX = /^[a-zA-Z_$][a-zA-Z_$0-9]*$/;
-    static PARAM_NAMES = [ 'self', 'vars', 'prefixDiv', 'suffixDiv', 'cleanup' ];
+    static PARAM_NAMES = [ 'self', 'weights', 'prefixDiv', 'suffixDiv', 'cleanup' ];
     static MIN_NAME_LENGTH = 1;
     static MAX_NAME_LENGTH = 256;
     static DEFAULT_NAME_PREFIX = 'unit_';
@@ -9,6 +9,7 @@ class Unit {
     
     name = null;
     self = null;
+    weights = null;
     substrate = null;
     prefixDiv = null;
     suffixDiv = null;
@@ -17,6 +18,7 @@ class Unit {
     constructor(name, code, substrate) {
         this.name = name;
         this.self = {};
+        this.weights = {};
         this.substrate = substrate;
         this.div = makeDiv('Unit');
         const panelDiv = this.div.appendChild(makeDiv('panel'));
@@ -116,35 +118,63 @@ class Unit {
             }});
     }
 
-    #cleanupFns = [];
-    cleanup() {
-        for (let i = this.#cleanupFns.length - 1; i >= 0; --i) {
-            this.#cleanupFns[i]();
+    async save() {
+        const weights = {};
+        for (const currName in this.weights) {
+            const currWeights = this.weights[currName];
+            weights[currName] = {
+                isVariable: currWeights instanceof tf.Variable,
+                value: await currWeights.array()
+            };
         }
-        this.#cleanupFns.length = 0;
+        return { name: this.name, code: this.code, weights };
+    }
+    loadWeights(weightsSrc) {
+        this.#releaseWeights();
+        for (const currName in weightsSrc) {
+            const tensor = tf.tensor(weightsSrc[currName].value);
+            this.weights[currName] = weightsSrc[currName].isVariable ? tf.variable(tensor) : tensor;
+        }
+    }
+
+    #releaseWeights() {
+        for (let currName in this.weights) {
+            tf.dispose(this.weights[currName]);
+        }
+        this.weights = {};
+    }
+    #deferredFns = [];
+    cleanup(keepWeights = false) {
+        for (let i = this.#deferredFns.length - 1; i >= 0; --i) {
+            this.#deferredFns[i]();
+        }
+        this.#deferredFns.length = 0;
+        if (!keepWeights) {
+            this.#releaseWeights();
+        }
         this.prefixDiv.innerHTML = '';
         this.suffixDiv.innerHTML = '';
     }
     run() {
         try {
-            const fn = new Function('self', 'vars', 'prefixDiv', 'suffixDiv', 'cleanup', ...this.substrate.units.map(x => x.name), this.code);
-            this.cleanup();
-            fn(this.self, this.substrate.vars, this.prefixDiv, this.suffixDiv, (fn) => this.#cleanupFns.push(fn), ...this.substrate.units.map(x => x.self));
+            const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', ...this.substrate.units.map(x => x.name), this.code);
+            this.cleanup(true);
+            fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, (fn) => this.#deferredFns.push(fn), ...this.substrate.units.map(x => x.self));
         } catch (error) {
-            console.log(`unit: ${ this.name }`, error);
-            // const message = error.message;
-            // const stackLines = error.stack?.split('\n');
-            // console.log(message, stackLines[0]);
+            console.log(`ERROR: unit = ${ this.name }\n\t`, error);
         }
     }
 
     onAutoComplete(completionContext) {
         const match = completionContext.matchBefore(/[\w.]*/);
+        console.log('onAutoComplete\n\tmatch', match);
         if (match.from == match.to && !completionContext.explicit) {
             return null;
         }
         const names = match.text.split('.');
+        console.log('\tnames', names);
         const prefix = names.filter((currWord, i) => currWord.trim().length > 0 || i === names.length - 1);
+        console.log('\tprefix', prefix);
         const options = [];
         let currThis = globalThis;
         for (let i = 0; i < prefix.length; ++i) {
@@ -156,8 +186,8 @@ class Unit {
                 if (prefix[0] === 'self') {
                     currThis = this.self;
                     continue;
-                } else if (prefix[0] === 'vars') {
-                    currThis = this.substrate.vars;
+                } else if (prefix[0] === 'weights') {
+                    currThis = this.weights;
                     continue;
                 } else if (prefix[0] === 'prefixDiv') {
                     currThis = this.prefixDiv;
@@ -165,7 +195,7 @@ class Unit {
                 } else if (prefix[0] === 'suffixDiv') {
                     currThis = this.suffixDiv;
                     continue;
-                } else if (prefix[0] === 'cleanup') {
+                } else if (prefix[0] === 'defer') {
                     currThis = () => true;
                     continue;
                 } else if (this.substrate.units.filter(x => x.name === prefix[0]).length > 0) {

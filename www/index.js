@@ -1,4 +1,4 @@
-var DEV_MODE = false;   // set to true to save substrate as 'defaultSubstrate.js'
+var DEV_MODE = true;   // set to true to save substrate as 'defaultSubstrate.js'
 const VERSION = '0.1';
 
 

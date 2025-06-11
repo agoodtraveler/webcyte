@@ -1,13 +1,15 @@
 class Substrate {
-    vars = {};
     units = [];
     div = null;
     constructor() {
         this.div = makeDiv('Substrate');
     }
 
-    insertUnit(name, code, atIndex = this.units.length) {
-        const unit = new Unit(name, code, this);
+    insertUnit(unitSrc, atIndex = this.units.length) {
+        const unit = new Unit(unitSrc.name, unitSrc.code, this);
+        if (unitSrc.weights) {
+            unit.loadWeights(unitSrc.weights);
+        }
         this.units.splice(atIndex, 0, unit);
         this.units.forEach((currUnit, i) => currUnit.div.style.order = (i * 2) + 1);
         this.div.appendChild(unit.div);
@@ -21,7 +23,7 @@ class Substrate {
         while (this.units.find(x => x.name === currName)) {
             currName = `${ prefix }${ ++num }`
         }
-        this.insertUnit(currName, Unit.DEFAULT_CODE, atIndex);
+        this.insertUnit({ name: currName, code: Unit.DEFAULT_CODE }, atIndex);
     }
     removeUnit(unit) {
         unit.cleanup();
@@ -36,37 +38,18 @@ class Substrate {
     }
 
     async serialize() {
-        const dst = {
-            vars: {},
-            units: this.units.map((currUnit) => ({ name: currUnit.name, code: currUnit.code })),
-        };
-        for (const currName in this.vars) {
-            const currWeights = this.vars[currName];
-            dst.vars[currName] = {
-                isVariable: currWeights instanceof tf.Variable,
-                value: await currWeights.array()
-            };
+        const unitsSrc = [];
+        for (let currUnit of this.units) {
+            unitsSrc.push(await currUnit.save());
         }
-        return JSON.stringify(dst);
+        return JSON.stringify({ units: unitsSrc });
     }
     deserialize(jsonStr) {
         const src = JSON.parse(jsonStr);
-        for (let i = 0; i < this.units.length; ++i) {
-            this.units[i].cleanup();
-        }
-        for (let currName in this.vars) {
-            tf.dispose(this.vars[currName]);
-        }
-        this.vars = {};
+        this.units.forEach(x => x.cleanup());
         this.units = [];
         this.div.innerHTML = '';
-
-        for (const currName in src.vars) {
-            const currSrcWeights = src.vars[currName];
-            const tensor = tf.tensor(currSrcWeights.value);
-            this.vars[currName] = currSrcWeights.isVariable ? tf.variable(tensor) : tensor;
-        }
-        src.units.forEach(currUnit => this.insertUnit(currUnit.name, currUnit.code));
+        src.units.forEach(currUnitSrc => this.insertUnit(currUnitSrc));
     }
 
 
