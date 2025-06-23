@@ -1,33 +1,13 @@
-var DEV_MODE = true;   // set to true to save substrate as 'defaultSubstrate.js'
 const VERSION = '0.1';
-
-
-
-const mainDiv = document.getElementById('main');
-mainDiv.onscroll = () => {
-    const contentsRect = mainDiv.getBoundingClientRect();
-    mainDiv.querySelectorAll('.Unit').forEach(currUnitDiv => {
-        const unitRect = currUnitDiv.getBoundingClientRect();
-        if (unitRect.y < contentsRect.height && unitRect.y + unitRect.height > 0) {
-            const controlsDiv = currUnitDiv.querySelector('.controls');
-            const controlsRect = controlsDiv.getBoundingClientRect();
-            if (unitRect.y >= contentsRect.y) {
-                controlsDiv.style.transform = 'translateY(0px)';
-            } else {
-                controlsDiv.style.transform = `translateY(${ Math.min(contentsRect.y - unitRect.y, unitRect.height - controlsRect.height) }px)`;
-            }
-        }
-    });
-}
+var DEV_MODE = true;   // saves substrates to .js ('defaultSubstrate.js') instead of .json, if true.
 
 let substrate = null;
 
 window.onload = async () => {
     await tf.ready();
-    console.log(`webcyte v0.1:  DEV_MODE = ${ DEV_MODE}; TFJS backend, version`, tf.getBackend(), tf.version.tfjs);
-    // TODO: try 'tf.enableProdMode();'?
+    console.log(`webcyte v${ VERSION }:  DEV_MODE = ${ DEV_MODE}; TFJS backend, version`, tf.getBackend(), tf.version.tfjs);
     substrate = makeDefaultSubstrate();
-    mainDiv.appendChild(substrate.div);
+    document.getElementById('main').appendChild(substrate.div);
     substrate.run();
 }
 
@@ -61,6 +41,7 @@ const saveToFile = async () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 };
+
 const loadFromFile = () => {
     const fileInputEl = document.body.appendChild(document.createElement('input'));
     fileInputEl.type = 'file';

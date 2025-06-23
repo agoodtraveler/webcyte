@@ -34,7 +34,11 @@ class Substrate {
     }
 
     run() {
-        this.units.forEach(currUnit => currUnit.run());
+        for (let currUnit of this.units) {
+            if (currUnit.run() === false) {
+                break;
+            }
+        }
     }
 
     async serialize() {

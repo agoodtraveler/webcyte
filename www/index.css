@@ -11,6 +11,7 @@
     --borderColor: #869aa6;
     --btnSize: 1.5em;
     --btnFontSize: 14pt;
+    --headerHeight: 2em;
 }
 
 
@@ -66,30 +67,29 @@ h1, h2, h3 {
 }
 
 
-.header {
+#header {
     display: flex;
     flex-flow: row wrap;
     align-items: center;
     justify-content: space-between;
     padding-left: 1ch;
     padding-right: 1ch;
-    padding-top: 0.25em;
-    padding-bottom: 0.25em;
     background-color: var(--headerColor);
+    height: var(--headerHeight);
 }
-.header button {
+#header button {
     padding: 2pt;
-    font-size: 12pt;
-    margin-right: 2ch;
+    font-size: var(--btnFontSize);
+    margin-right: 1ch;
 }
-.header .logo {
+#header .logo {
     color: var(--logoColor);
 }
-.header .title {
+#header .title {
     margin-left: 1ch;
     margin-right: 1ch;
 }
-.header .controls {
+#header .controls {
     flex: 1;
 }
 
@@ -97,11 +97,13 @@ h1, h2, h3 {
 
 #main {
     position: absolute;
-    top: 2.0em;
+    top: var(--headerHeight);
     bottom: 0px;
     left: 0px;
     width: 100%;
     overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bgColor) var(--buttonHoverBGColor);
 }
 
 
@@ -121,13 +123,12 @@ h1, h2, h3 {
     margin-right: 0.5ch;
 }
 .Unit .panel .controls {
+    position: sticky;
+    top: 0px;
     display: flex;
     flex-flow: column;
     justify-content: start;
     padding: 2pt;
-    /* border-radius: 2pt;
-    border: 1pt solid var(--borderColor); */
-    /* background-color: var(--controlsColor); */
 }
 .Unit .panel .controls .title {
     writing-mode: sideways-lr;

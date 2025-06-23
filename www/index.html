@@ -7,9 +7,7 @@
         <link rel="stylesheet" href="index.css">
     </head>
     <body>
-        
-        
-        
+               
         <noscript>
             <div id="noscript">
                 <strong>ERROR!</strong>
@@ -17,8 +15,6 @@
                 <p>(webcyte requires JavaScript to function - make sure JavaScript is enabled, or try another browser.)</p>
             </div>
         </noscript>
-        
-        
         
         <svg xmlns="http://www.w3.org/2000/svg"  style="display: none" hidden aria-hidden="true" focusable="false">
             <symbol id="logoImg" viewBox="0 0 512 512">
@@ -52,17 +48,14 @@
                 <path  fill="currentColor" d="M224 432h-80V80h80zM368 432h-80V80h80z"/>
             </symbol>
             <symbol id="listImg" viewBox="0 0 512 512">
-                <path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="48" d="M144 144h320M144 256h320M144 368h320"/><path fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round" stroke-width="32" d="M64 128h32v32H64zM64 240h32v32H64zM64 352h32v32H64z"/>
+                <path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="48" d="M144 144h320M144 256h320M144 368h320"/>
+                <path fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round" stroke-width="32" d="M64 128h32v32H64zM64 240h32v32H64zM64 352h32v32H64z"/>
             </symbol>
         </svg>
 
-
-
-        <span class="header">
+        <span id="header">
             <span class="controls">
-<!--
-                <button title="List Units in current Substrate." onclick="showNavigator()"><svg class="ionicon"><use href="#listImg"></use></svg></button>
--->
+                <!-- <button title="List units in current substrate." onclick="showNavigator()"><svg class="ionicon"><use href="#listImg"></use></svg></button> -->
                 <button title="Run all units in this substrate." style="margin-right: 4ch;" onclick="runSubstrate()"><svg class="ionicon"><use href="#playImg"></use></svg></button>
                 <button title="Load substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon"><use href="#openImg"></use></svg></button>
                 <button title="Download substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon"><use href="#saveImg"></use></svg></button>
@@ -89,5 +82,6 @@
         <script src="Substrate.js"></script>
         <script src="defaultSubstrate.js"></script>
         <script src="index.js"></script>
+
     </body>
 </html>

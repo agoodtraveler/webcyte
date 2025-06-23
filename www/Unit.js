@@ -1,6 +1,6 @@
 class Unit {
     static VALID_NAME_REGEX = /^[a-zA-Z_$][a-zA-Z_$0-9]*$/;
-    static PARAM_NAMES = [ 'self', 'weights', 'prefixDiv', 'suffixDiv', 'cleanup' ];
+    static PARAM_NAMES = [ 'self', 'weights', 'prefixDiv', 'suffixDiv', 'defer' ];
     static MIN_NAME_LENGTH = 1;
     static MAX_NAME_LENGTH = 256;
     static DEFAULT_NAME_PREFIX = 'unit_';
@@ -156,33 +156,34 @@ class Unit {
         this.suffixDiv.innerHTML = '';
     }
     run() {
+        let isComplete = false;
+        const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', ...this.substrate.units.map(x => x.name), this.code);
+        this.cleanup(true);
         try {
-            const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', ...this.substrate.units.map(x => x.name), this.code);
-            this.cleanup(true);
             fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, (fn) => this.#deferredFns.push(fn), ...this.substrate.units.map(x => x.self));
+            isComplete = true;
         } catch (error) {
-            console.log(`ERROR: unit = ${ this.name }\n\t`, error);
+            console.log(this.name);
+            console.log('message', error.message);
+            console.log('stack', error.stack);
         }
+        return isComplete;
     }
 
     onAutoComplete(completionContext) {
         const match = completionContext.matchBefore(/[\w.]*/);
-        console.log('onAutoComplete\n\tmatch', match);
+        // console.log('onAutoComplete\n\tmatch', match);
+        
         if (match.from == match.to && !completionContext.explicit) {
             return null;
         }
         const names = match.text.split('.');
-        console.log('\tnames', names);
         const prefix = names.filter((currWord, i) => currWord.trim().length > 0 || i === names.length - 1);
-        console.log('\tprefix', prefix);
+        // console.log(`\tprefix: ${ prefix.toString() }`);
         const options = [];
         let currThis = globalThis;
         for (let i = 0; i < prefix.length; ++i) {
-            if (Object.hasOwn(currThis, prefix[i])) {
-                const currProp = currThis[prefix[i]];
-                currThis = currProp;
-                continue;
-            } else if (i === 0 && prefix.length > 1) {
+            if (i === 0 && prefix.length > 1) {
                 if (prefix[0] === 'self') {
                     currThis = this.self;
                     continue;
@@ -199,9 +200,16 @@ class Unit {
                     currThis = () => true;
                     continue;
                 } else if (this.substrate.units.filter(x => x.name === prefix[0]).length > 0) {
-                    currThis = this.substrate.units.find(x => x.name === prefix[0]);
+                    const currUnit = this.substrate.units.find(x => x.name === prefix[0]);
+                    if (currUnit) {
+                        currThis = currUnit.self;
+                    }
                     continue;
                 }
+            } else if (Object.hasOwn(currThis, prefix[i])) {
+                const currProp = currThis[prefix[i]];
+                currThis = currProp;
+                continue;
             }
             break;
         }
