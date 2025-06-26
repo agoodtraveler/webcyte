@@ -1,8 +1,11 @@
 class Substrate {
     units = [];
+    logItems = [];
     div = null;
+    logDiv = null;
     constructor() {
         this.div = makeDiv('Substrate');
+        this.logDiv = makeDiv('log');
     }
 
     insertUnit(unitSrc, atIndex = this.units.length) {
@@ -38,6 +41,22 @@ class Substrate {
             if (currUnit.run() === false) {
                 break;
             }
+        }
+    }
+
+    log(unit, text, type = 'info') {
+        const logItem = {
+            time: Date.now(),
+            unit: unit === null ? null : unit.name,
+            text,
+            type
+        }
+        const shouldFollow = true;
+        this.logItems.push(logItem);
+        const lineDiv = makeLogLine(logItem, type);
+        this.logDiv.appendChild(lineDiv);
+        if (shouldFollow) {
+            this.logDiv.scrollTop = this.logDiv.scrollHeight;
         }
     }
 

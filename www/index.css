@@ -1,6 +1,5 @@
 :root {
     --bgColor: 		#282A36;
-    --logoColor: #128f30;
     --textColor: 	#869aa6;
     --headerColor: #181d26;  
     --buttonBGColor: 		#2c3540;
@@ -11,7 +10,6 @@
     --borderColor: #869aa6;
     --btnSize: 1.5em;
     --btnFontSize: 14pt;
-    --headerHeight: 2em;
 }
 
 
@@ -27,6 +25,7 @@ body {
     background-color: var(--bgColor);
     color: var(--textColor);
     font-family: 'Helvetica', 'Arial', sans-serif;
+    scrollbar-width: thin;
 }
 button {
     user-select: none;
@@ -67,45 +66,99 @@ h1, h2, h3 {
 }
 
 
+
+.column {
+    display: flex;
+    flex-flow: column;
+}
+.row {
+    display: flex;
+    flex-flow: row wrap;
+}
+
+.panel {
+    display: flex;
+    flex-flow: row;
+    background-color: #242424;
+    overflow: hidden;
+}
+.panel.hidden {
+    width: 0px !important;
+}
+.panel .resizer {
+    width: 4pt;
+    background-color: rgba(0, 0, 0, 0.1);
+    cursor: ew-resize;
+}
+.panel .log {
+    padding: 1ch;
+    flex: 1;
+    font-size: 0.7em;
+    overflow-y: scroll;
+    scrollbar-color: #444 #222;
+}
+.panel .log .line {
+    display: flex;
+    flex-flow: row wrap;
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
+    border-bottom: 2pt solid var(--headerColor);
+}
+.panel .log .line.error {
+    border-left: 2pt solid darkred;
+}
+.panel .log .line .time {
+    color: dimgray;
+    margin-right: 2ch;
+}
+.panel .log .line a {
+    margin-left: 1ch;
+}
+.panel .log .line .text {
+    color: var(--buttonTextColor);
+    margin-left: 1ch;
+}
+
+
+
+#contents {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+#main {
+    display: flex;
+    flex-flow: column;
+    flex: 1;
+}
+
 #header {
     display: flex;
     flex-flow: row wrap;
     align-items: center;
     justify-content: space-between;
-    padding-left: 1ch;
-    padding-right: 1ch;
+    padding: 0.5ch 1ch 0.5ch 1ch;
     background-color: var(--headerColor);
-    height: var(--headerHeight);
 }
 #header button {
     padding: 2pt;
     font-size: var(--btnFontSize);
     margin-right: 1ch;
 }
-#header .logo {
-    color: var(--logoColor);
-}
-#header .title {
-    margin-left: 1ch;
-    margin-right: 1ch;
-}
 #header .controls {
     flex: 1;
 }
 
-
-
-#main {
-    position: absolute;
-    top: var(--headerHeight);
-    bottom: 0px;
-    left: 0px;
+#substrate {
     width: 100%;
     overflow: auto;
-    scrollbar-width: thin;
     scrollbar-color: var(--bgColor) var(--buttonHoverBGColor);
 }
-
 
 
 .Substrate {
@@ -119,10 +172,10 @@ h1, h2, h3 {
     margin-right: 2ch;
 }
 
-.Unit .panel {
+.Unit .handle {
     margin-right: 0.5ch;
 }
-.Unit .panel .controls {
+.Unit .handle .controls {
     position: sticky;
     top: 0px;
     display: flex;
@@ -130,7 +183,7 @@ h1, h2, h3 {
     justify-content: start;
     padding: 2pt;
 }
-.Unit .panel .controls .title {
+.Unit .handle .controls .title {
     writing-mode: sideways-lr;
     margin-top: 1ch;
     margin-bottom: 1ch;
@@ -140,7 +193,7 @@ h1, h2, h3 {
     letter-spacing: 1px;
     overflow: hidden;
 }
-.Unit .panel .controls .title.invalid {
+.Unit .handle .controls .title.invalid {
     border-radius: 2pt;
     outline: 2pt solid darkred;
 }
@@ -150,15 +203,10 @@ h1, h2, h3 {
     flex-flow: column;
     flex-grow: 1;
 }
-
 .Unit .contents .column {
-    display: flex;
-    flex-flow: column;
     padding: 1ch;
 }
 .Unit .contents .row {
-    display: flex;
-    flex-flow: row wrap;
     padding: 1ch;
 }
 

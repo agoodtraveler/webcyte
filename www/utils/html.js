@@ -16,6 +16,11 @@ const makeCanvas = (width, height) => {
     canvas.height = height;
     return canvas;
 }
+const makeA = (href) => {
+    const a = document.createElement('a');
+    a.setAttribute('href', href);
+    return a;
+}
 const makeSlider = (min, max, onChangeFn) => {
     const input = document.createElement('input');
     input.setAttribute('type', 'range');
@@ -24,4 +29,15 @@ const makeSlider = (min, max, onChangeFn) => {
     input.value = min;
     input.oninput = () => onChangeFn();
     return input;
+}
+const makeLogLine = ({ time, unit, text }, className = 'info') => {
+    const div = makeDiv(`line ${ className }`);
+    const t = new Date(time);
+    // div.appendChild(makeDiv('time')).innerText = `[ ${ String(t.getDate()).padStart(2, '0') }/${ String(t.getMonth() + 1).padStart(2, '0') }/${ String(t.getFullYear()).substring(2) } ${ String(t.getHours()).padStart(2, '0') }:${ String(t.getMinutes()).padStart(2, '0') }:${ String(t.getSeconds()).padStart(2, '0') }:${ String(t.getMilliseconds()).padStart(3, '0') } ]`;
+    div.appendChild(makeDiv('time')).innerText = `[ ${ String(t.getHours()).padStart(2, '0') }:${ String(t.getMinutes()).padStart(2, '0') }:${ String(t.getSeconds()).padStart(2, '0') }:${ String(t.getMilliseconds()).padStart(3, '0') } ]`;
+    if (unit) {
+        div.appendChild(makeA(`#unit_${ unit }`)).innerText = unit;
+    }
+    div.appendChild(makeDiv('text')).innerHTML = text;
+    return div;
 }

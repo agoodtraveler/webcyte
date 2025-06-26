@@ -15,18 +15,8 @@
                 <p>(webcyte requires JavaScript to function - make sure JavaScript is enabled, or try another browser.)</p>
             </div>
         </noscript>
-        
+
         <svg xmlns="http://www.w3.org/2000/svg"  style="display: none" hidden aria-hidden="true" focusable="false">
-            <symbol id="logoImg" viewBox="0 0 512 512">
-                <symbol id='logoCell'>
-                    <rect fill='currentColor' width='128' height='128'/>
-                </symbol>
-                <use href='#logoCell' x='128' y='0'/>
-                <use href='#logoCell' x='256' y='128'/>
-                <use href='#logoCell' x='256' y='256'/>
-                <use href='#logoCell' x='128' y='256'/>
-                <use href='#logoCell' x='0' y='256'/>
-            </symbol>
             <symbol id="saveImg" viewBox="0 0 512 512">
                 <path fill="currentColor" d="M380.44 32H64a32 32 0 00-32 32v384a32 32 0 0032 32h384a32.09 32.09 0 0032-32V131.56zM112 176v-64h192v64zm223.91 179.76a80 80 0 11-83.66-83.67 80.21 80.21 0 0183.66 83.67z"/>
             </symbol>
@@ -51,20 +41,36 @@
                 <path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="48" d="M144 144h320M144 256h320M144 368h320"/>
                 <path fill="none" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round" stroke-width="32" d="M64 128h32v32H64zM64 240h32v32H64zM64 352h32v32H64z"/>
             </symbol>
+            <symbol id="logImg" viewBox="0 0 512 512">
+                <path fill="currentColor" d="M80 44v424a12 12 0 0012 12h328a12 12 0 0012-12V44a12 12 0 00-12-12H92a12 12 0 00-12 12zm192 260H160v-32h112zm80-80H160v-32h192zm0-80H160v-32h192z"/>
+            </symbol>
         </svg>
 
-        <span id="header">
-            <span class="controls">
-                <!-- <button title="List units in current substrate." onclick="showNavigator()"><svg class="ionicon"><use href="#listImg"></use></svg></button> -->
-                <button title="Run all units in this substrate." style="margin-right: 4ch;" onclick="runSubstrate()"><svg class="ionicon"><use href="#playImg"></use></svg></button>
-                <button title="Load substrate from local (JSON) file." onclick="loadFromFile()"><svg class="ionicon"><use href="#openImg"></use></svg></button>
-                <button title="Download substrate as a (JSON) file." onclick="saveToFile()"><svg class="ionicon"><use href="#saveImg"></use></svg></button>
-            </span>
-            <span class="title">webcyte</span>
-            <svg class="logo ionicon" viewBox="0 0 512 512"><use href="#logoImg"></use></svg>
-        </span>
 
-        <div id="main"></div>
+
+        <div id="contents">
+            <div id="main">
+                <span id="header">
+                    <span class="controls">
+                        <button title="Run all units in this substrate." onclick="runSubstrate()">
+                            <svg class="ionicon"><use href="#playImg"></use></svg>
+                        </button>
+                        <button title="Load substrate from local (JSON) file." onclick="loadFromFile()">
+                            <svg class="ionicon"><use href="#openImg"></use></svg>
+                        </button>
+                        <button title="Download substrate as a (JSON) file." onclick="saveToFile()">
+                            <svg class="ionicon"><use href="#saveImg"></use></svg>
+                        </button>
+                    </span>
+                    <button title="Show system log." onclick="toggleLog()"><svg class="ionicon"><use href="#logImg"></use></svg></button>
+                </span>
+                <div id="substrate"></div>
+            </div>
+            <div id="logPanel" class="panel right hidden">
+                <div class="resizer"  onmousedown="resizeLog(event)"></div>
+            </div>
+        </div>
+
 
 
 

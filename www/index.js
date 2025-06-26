@@ -5,17 +5,44 @@ let substrate = null;
 
 window.onload = async () => {
     await tf.ready();
-    console.log(`webcyte v${ VERSION }:  DEV_MODE = ${ DEV_MODE}; TFJS backend, version`, tf.getBackend(), tf.version.tfjs);
+    const info = `webcyte v${ VERSION }:  DEV_MODE = ${ DEV_MODE }; TFJS backend = ${ tf.getBackend() };  TFJS version = ${ tf.version.tfjs }`;
+    console.log(info);
     substrate = makeDefaultSubstrate();
-    document.getElementById('main').appendChild(substrate.div);
+    substrate.log(null, info);
+    document.getElementById('substrate').appendChild(substrate.div);
+    document.getElementById('logPanel').appendChild(substrate.logDiv);
     substrate.run();
 }
 
 
 
-const showNavigator = () => {
-    console.log('show navigator');
+const logPanelDiv = document.getElementById('logPanel');
+if (window.innerWidth > 1024) {
+    logPanelDiv.classList.remove('hidden');
+    logPanelDiv.style.width = `512px`;
+} else {
+    logPanelDiv.style.width = `${ window.innerWidth - 44 }px`;
 }
+
+const resizePanel = (event, panelDiv) => {
+    event.preventDefault();
+    event.stopPropagation();
+    let startX = event.clientX;
+    let startWidth = parseInt(getComputedStyle(panelDiv).width);
+    const resize = (event) => {
+        const delta =panelDiv.classList.contains('left') ?  event.clientX - startX : startX - event.clientX;
+        const newWidth = startWidth + delta;
+        panelDiv.style.width = newWidth + 'px';
+    }
+    const stopResize = () => {
+        document.removeEventListener('mousemove', resize);
+        document.removeEventListener('mouseup', stopResize);
+    }
+    document.addEventListener('mousemove', resize);
+    document.addEventListener('mouseup', stopResize);
+}
+const resizeLog = (event) => resizePanel(event, logPanelDiv);
+const toggleLog = () => logPanelDiv.classList.toggle('hidden');
 
 const runSubstrate = () => {
     substrate.run();
@@ -54,7 +81,7 @@ const loadFromFile = () => {
         }
         try {
             substrate.deserialize(await file.text());
-            console.log('Model loaded.');
+            substrate.log(null, 'Model loaded.');
         } catch (error) {
             console.error('Error loading model:', error);
         }

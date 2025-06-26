@@ -1,28 +1,36 @@
 class Unit {
     static VALID_NAME_REGEX = /^[a-zA-Z_$][a-zA-Z_$0-9]*$/;
-    static PARAM_NAMES = [ 'self', 'weights', 'prefixDiv', 'suffixDiv', 'defer' ];
+    static PARAM_NAMES = [ 'self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', 'log' ];
     static MIN_NAME_LENGTH = 1;
     static MAX_NAME_LENGTH = 256;
     static DEFAULT_NAME_PREFIX = 'unit_';
     static DEFAULT_CODE = '// Hello World!';
     static isValidName = (name) => name.length <= Unit.MAX_NAME_LENGTH && name.length >= Unit.MIN_NAME_LENGTH && Unit.VALID_NAME_REGEX.test(name) && !Unit.PARAM_NAMES.includes(name);
     
-    name = null;
+    div = null;
     self = null;
     weights = null;
     substrate = null;
     prefixDiv = null;
     suffixDiv = null;
-    div = null;
     editor = null;
+    #name = null;
+    set name(x) {
+        this.#name =x;
+        this.div.id = `unit_${ x }`;
+    }
+    get name() {
+        return this.#name;
+    }
     constructor(name, code, substrate) {
+        this.div = makeDiv('Unit');
         this.name = name;
         this.self = {};
         this.weights = {};
         this.substrate = substrate;
-        this.div = makeDiv('Unit');
-        const panelDiv = this.div.appendChild(makeDiv('panel'));
-        const controlsDiv = panelDiv.appendChild(makeDiv('controls'));
+        this.div.id = `unit_${ this.name }`;
+        const handleDiv = this.div.appendChild(makeDiv('handle'));
+        const controlsDiv = handleDiv.appendChild(makeDiv('controls'));
         const runBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg>', `Run unit: '${ this.name }' ('Ctrl + Enter' hotkey in code editor)`, () => this.run()));
         const nameDiv = controlsDiv.appendChild(makeDiv('title'));
         nameDiv.setAttribute('spellcheck', false);
@@ -156,20 +164,26 @@ class Unit {
         this.suffixDiv.innerHTML = '';
     }
     run() {
+        const defer = (fn) => this.#deferredFns.push(fn);
+        const log = (text) => this.substrate.log(this, text);
         let isComplete = false;
-        const fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', ...this.substrate.units.map(x => x.name), this.code);
-        this.cleanup(true);
+        let fn = null;
         try {
-            fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, (fn) => this.#deferredFns.push(fn), ...this.substrate.units.map(x => x.self));
+            fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', 'log', ...this.substrate.units.map(x => x.name), this.code);
+            this.cleanup(true);
+        } catch (error) {
+            this.substrate.log(this, error.stack, 'error');
+            return isComplete;
+        }
+
+        try {
+            fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, defer, log, ...this.substrate.units.map(x => x.self));
             isComplete = true;
         } catch (error) {
-            console.log(this.name);
-            console.log('message', error.message);
-            console.log('stack', error.stack);
+            this.substrate.log(this, error.stack, 'error');
         }
         return isComplete;
     }
-
     onAutoComplete(completionContext) {
         const match = completionContext.matchBefore(/[\w.]*/);
         // console.log('onAutoComplete\n\tmatch', match);
@@ -199,6 +213,8 @@ class Unit {
                 } else if (prefix[0] === 'defer') {
                     currThis = () => true;
                     continue;
+                } else if (prefix[0] === 'log') {
+                    currThis = () => true;
                 } else if (this.substrate.units.filter(x => x.name === prefix[0]).length > 0) {
                     const currUnit = this.substrate.units.find(x => x.name === prefix[0]);
                     if (currUnit) {
