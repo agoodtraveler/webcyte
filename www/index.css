@@ -2,12 +2,8 @@
     --bgColor: 		#282A36;
     --textColor: 	#869aa6;
     --headerColor: #181d26;  
-    --buttonBGColor: 		#2c3540;
-    --buttonHoverBGColor:  #3d4c5f;
-    --buttonActiveBGColor: #000000;
-    --buttonTextColor: #c1ceD9;
-    --controlsColor: #181d26;
-    --borderColor: #869aa6;
+    --brightTextColor: #c1ceD9;
+    --scrollBarColor: #FFF1 #0004;
     --btnSize: 1.5em;
     --btnFontSize: 14pt;
 }
@@ -30,25 +26,24 @@ body {
 button {
     user-select: none;
     -webkit-user-select: none;
-    background-color: var(--buttonBGColor);
-    color: var(--buttonTextColor);
-    padding: 0px;
-    border: 1pt;
-    border-radius: 2pt;
+    background-color: #0000;
+    color: #FFF6;
+    border: 1pt solid;
+    border-radius: 4pt;
     font-size: var(--btnFontSize);
     line-height: 0em;
-    padding: 4pt;
-    transition: background-color 0.2s;
+    padding: 0.5ch;
+    transition: color 0.4s, background-color 0.4s;
 }
 button:hover {
-    background-color: var(--buttonHoverBGColor);
+    color: #FFFF;
 }
 button:active {
-    background-color: var(--buttonBGColor);
+    background-color: #FFF4;
 }
 canvas {
     --s: 2ch;
-    border: 1pt solid var(--borderColor); 
+    border: 1pt solid var(--brightTextColor); 
     mask: 
         conic-gradient(#000 0 0) content-box,
         conic-gradient(at var(--s) var(--s),#0000 75%,#000 0) 
@@ -56,13 +51,16 @@ canvas {
     image-rendering: pixelated;
 }
 a {
-    color: var(--buttonTextColor);
+    color: var(--brightTextColor);
 }
 a:visited {
     color: cadetblue;
 }
 h1, h2, h3 {
     margin: 0pt;
+}
+details summary::marker,:is(::-webkit-details-marker) {
+  color: #FFF4;
 }
 
 
@@ -87,35 +85,36 @@ h1, h2, h3 {
 }
 .panel .resizer {
     width: 4pt;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: #0001;
     cursor: ew-resize;
 }
 .panel .log {
     padding: 1ch;
+    padding-top: 5em;
     flex: 1;
     font-size: 0.7em;
     overflow-y: scroll;
-    scrollbar-color: #444 #222;
+    scrollbar-color: var(--scrollBarColor);
 }
 .panel .log .line {
     display: flex;
     flex-flow: row wrap;
     padding-top: 0.25em;
     padding-bottom: 0.25em;
-    border-bottom: 2pt solid var(--headerColor);
+    border-bottom: 1pt solid #FFF1;
 }
 .panel .log .line.error {
     border-left: 2pt solid darkred;
 }
 .panel .log .line .time {
-    color: dimgray;
+    color: gray;
     margin-right: 2ch;
 }
 .panel .log .line a {
     margin-left: 1ch;
 }
 .panel .log .line .text {
-    color: var(--buttonTextColor);
+    color: var(--brightTextColor);
     margin-left: 1ch;
 }
 
@@ -131,33 +130,34 @@ h1, h2, h3 {
     flex-flow: row nowrap;
 }
 
-#main {
-    display: flex;
-    flex-flow: column;
-    flex: 1;
-}
-
 #header {
+    position: absolute;
+    top: 1ch;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     flex-flow: row wrap;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.5ch 1ch 0.5ch 1ch;
+    justify-content: center;
     background-color: var(--headerColor);
-}
-#header button {
-    padding: 2pt;
-    font-size: var(--btnFontSize);
-    margin-right: 1ch;
+    z-index: 999;
 }
 #header .controls {
-    flex: 1;
+    padding: 0.5ch;
+    border: 1pt solid #FFF4;
+    border-radius: 4pt;
+}
+#header .controls button {
+    margin-right: 0.5ch;
+    margin-left: 0.5ch;
+    border: none;
 }
 
 #substrate {
     width: 100%;
     overflow: auto;
-    scrollbar-color: var(--bgColor) var(--buttonHoverBGColor);
+    scrollbar-color: var(--scrollBarColor);
+    padding-top: 3em;
 }
 
 
@@ -172,16 +172,14 @@ h1, h2, h3 {
     margin-right: 2ch;
 }
 
-.Unit .handle {
-    margin-right: 0.5ch;
-}
 .Unit .handle .controls {
     position: sticky;
     top: 0px;
     display: flex;
     flex-flow: column;
     justify-content: start;
-    padding: 2pt;
+    align-items: center;
+    padding: 1ch;
 }
 .Unit .handle .controls .title {
     writing-mode: sideways-lr;
@@ -203,6 +201,13 @@ h1, h2, h3 {
     flex-flow: column;
     flex-grow: 1;
 }
+.Unit .contents .prefixDiv {
+    margin: 4ch;
+}
+.Unit .contents .suffixDiv {
+    margin: 4ch;
+}
+
 .Unit .contents .column {
     padding: 1ch;
 }
@@ -230,11 +235,12 @@ h1, h2, h3 {
 
 .insert {
     width: 100%;
-    display: flex;
-    flex-flow: row;
-    justify-content: center;
     padding-top: 0.5em;
     padding-bottom: 0.5em;
+    padding-left: 1ch;
+}
+.insert button {
+    border: none;
 }
 
 

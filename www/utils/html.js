@@ -16,6 +16,11 @@ const makeCanvas = (width, height) => {
     canvas.height = height;
     return canvas;
 }
+const makeDetails = (summary) => {
+    const details = document.createElement('details');
+    details.appendChild(document.createElement('summary')).innerText = summary;
+    return details;
+}
 const makeA = (href) => {
     const a = document.createElement('a');
     a.setAttribute('href', href);

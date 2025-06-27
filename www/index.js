@@ -24,24 +24,22 @@ if (window.innerWidth > 1024) {
     logPanelDiv.style.width = `${ window.innerWidth - 44 }px`;
 }
 
-const resizePanel = (event, panelDiv) => {
+const resizeLog = (event) => {
     event.preventDefault();
     event.stopPropagation();
     let startX = event.clientX;
-    let startWidth = parseInt(getComputedStyle(panelDiv).width);
-    const resize = (event) => {
-        const delta =panelDiv.classList.contains('left') ?  event.clientX - startX : startX - event.clientX;
-        const newWidth = startWidth + delta;
-        panelDiv.style.width = newWidth + 'px';
+    let startWidth = parseInt(getComputedStyle(logPanelDiv).width);
+    const onMove = (ev) => {
+        const delta = startX - ev.clientX;
+        logPanelDiv.style.width = `${ startWidth + delta }px`;
     }
-    const stopResize = () => {
-        document.removeEventListener('mousemove', resize);
-        document.removeEventListener('mouseup', stopResize);
+    const onRelease = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onRelease);
     }
-    document.addEventListener('mousemove', resize);
-    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onRelease);
 }
-const resizeLog = (event) => resizePanel(event, logPanelDiv);
 const toggleLog = () => logPanelDiv.classList.toggle('hidden');
 
 const runSubstrate = () => {

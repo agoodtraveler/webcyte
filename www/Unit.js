@@ -62,7 +62,9 @@ class Unit {
         delBtn.style.marginBottom = '1em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
         this.prefixDiv = contentsDiv.appendChild(makeDiv('prefixDiv'));
-        const editorDiv = contentsDiv.appendChild(makeDiv('editor'));
+        const editorEl = contentsDiv.appendChild(makeDetails(''));
+        editorEl.setAttribute('open', true);
+        const editorDiv = editorEl.appendChild(makeDiv('editor'));
         const languagePack = cm.javascript();
         const webcyteKeymap = cm.keymap.of([{
                     key: "Ctrl-Enter",
@@ -170,13 +172,12 @@ class Unit {
         let fn = null;
         try {
             fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', 'log', ...this.substrate.units.map(x => x.name), this.code);
-            this.cleanup(true);
         } catch (error) {
             this.substrate.log(this, error.stack, 'error');
             return isComplete;
         }
-
         try {
+            this.cleanup(true);
             fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, defer, log, ...this.substrate.units.map(x => x.self));
             isComplete = true;
         } catch (error) {
