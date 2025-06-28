@@ -30,11 +30,11 @@ const resizeLog = (event) => {
         logPanelDiv.style.width = `${ startWidth + delta }px`;
     }
     const onRelease = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onRelease);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onRelease);
     }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onRelease);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onRelease);
 }
 const toggleLog = () => logPanelDiv.classList.toggle('hidden');
 

@@ -84,8 +84,8 @@ details summary::marker,:is(::-webkit-details-marker) {
     width: 0px !important;
 }
 .panel .resizer {
-    width: 4pt;
-    background-color: #0001;
+    width: 1ch;
+    background-color: #0000;
     cursor: ew-resize;
 }
 .panel .log {
@@ -154,7 +154,8 @@ details summary::marker,:is(::-webkit-details-marker) {
 }
 
 #substrate {
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden; /* TODO: better way to fix (horizontal) overflow (seemingly) due to vertical scroll bar. */
     scrollbar-color: var(--scrollBarColor);
     flex: 1;
 }

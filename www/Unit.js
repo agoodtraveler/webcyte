@@ -13,22 +13,22 @@ class Unit {
     substrate = null;
     prefixDiv = null;
     suffixDiv = null;
+    editorDetails = null;
     editor = null;
     #name = null;
     set name(x) {
-        this.#name =x;
+        this.#name = x;
         this.div.id = `unit_${ x }`;
     }
     get name() {
         return this.#name;
     }
-    constructor(name, code, substrate) {
+    constructor(name, code, isOpen, substrate) {
         this.div = makeDiv('Unit');
         this.name = name;
         this.self = {};
         this.weights = {};
         this.substrate = substrate;
-        this.div.id = `unit_${ this.name }`;
         const handleDiv = this.div.appendChild(makeDiv('handle'));
         const controlsDiv = handleDiv.appendChild(makeDiv('controls'));
         const runBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg>', `Run unit: '${ this.name }' ('Ctrl + Enter' hotkey in code editor)`, () => this.run()));
@@ -62,9 +62,11 @@ class Unit {
         delBtn.style.marginBottom = '1em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
         this.prefixDiv = contentsDiv.appendChild(makeDiv('prefixDiv'));
-        const editorEl = contentsDiv.appendChild(makeDetails(''));
-        editorEl.setAttribute('open', true);
-        const editorDiv = editorEl.appendChild(makeDiv('editor'));
+        this.editorDetails = contentsDiv.appendChild(makeDetails(''));
+        if (isOpen) {
+            this.editorDetails.setAttribute('open', true);
+        }
+        const editorDiv = this.editorDetails.appendChild(makeDiv('editor'));
         const languagePack = cm.javascript();
         const webcyteKeymap = cm.keymap.of([{
                     key: "Ctrl-Enter",
@@ -137,7 +139,8 @@ class Unit {
                 value: await currWeights.array()
             };
         }
-        return { name: this.name, code: this.code, weights };
+        const isOpen = this.editorDetails.open;
+        return { name: this.name, code: this.code, weights, isOpen };
     }
     loadWeights(weightsSrc) {
         this.#releaseWeights();

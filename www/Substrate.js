@@ -9,7 +9,7 @@ class Substrate {
     }
 
     insertUnit(unitSrc, atIndex = this.units.length) {
-        const unit = new Unit(unitSrc.name, unitSrc.code, this);
+        const unit = new Unit(unitSrc.name, unitSrc.code, unitSrc.isOpen, this);
         if (unitSrc.weights) {
             unit.loadWeights(unitSrc.weights);
         }
@@ -26,7 +26,7 @@ class Substrate {
         while (this.units.find(x => x.name === currName)) {
             currName = `${ prefix }${ ++num }`
         }
-        this.insertUnit({ name: currName, code: Unit.DEFAULT_CODE }, atIndex);
+        this.insertUnit({ name: currName, code: Unit.DEFAULT_CODE, isOpen: true }, atIndex);
     }
     removeUnit(unit) {
         unit.cleanup();

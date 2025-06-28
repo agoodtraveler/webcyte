@@ -7,8 +7,8 @@ class GridView extends StateView {
     onFrame = null;
     FPS = 0;
     #isRunning = false;
-    constructor(statae, title, isEditable = false, color, brushSize) {
-        super(statae, title, isEditable);
+    constructor(state, title, isEditable = false, color, brushSize) {
+        super(state, title, isEditable);
         this.toggleBtn = makeButton(this.#isRunning ? GridView.PAUSE_IMG : GridView.PLAY_IMG, '', () => this.isRunning = !this.isRunning);
         this.headerDiv.appendChild(this.toggleBtn);
         if (isEditable) {
