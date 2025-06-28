@@ -154,11 +154,11 @@ details summary::marker,:is(::-webkit-details-marker) {
 }
 
 #substrate {
-    width: 100%;
     overflow: auto;
     scrollbar-color: var(--scrollBarColor);
-    padding-top: 3em;
+    flex: 1;
 }
+
 
 
 .Substrate {

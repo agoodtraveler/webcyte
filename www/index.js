@@ -17,18 +17,14 @@ window.onload = async () => {
 
 
 const logPanelDiv = document.getElementById('logPanel');
-if (window.innerWidth > 1024) {
-    logPanelDiv.classList.remove('hidden');
-    logPanelDiv.style.width = `512px`;
-} else {
-    logPanelDiv.style.width = `${ window.innerWidth - 44 }px`;
-}
+logPanelDiv.classList.remove('hidden');
+logPanelDiv.style.width = `${  0.4 * window.innerWidth }px`;
 
 const resizeLog = (event) => {
     event.preventDefault();
     event.stopPropagation();
     let startX = event.clientX;
-    let startWidth = parseInt(getComputedStyle(logPanelDiv).width);
+    let startWidth = logPanelDiv.getBoundingClientRect().width;
     const onMove = (ev) => {
         const delta = startX - ev.clientX;
         logPanelDiv.style.width = `${ startWidth + delta }px`;
