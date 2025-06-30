@@ -9,7 +9,7 @@ window.onload = async () => {
     console.log(info);
     substrate = makeDefaultSubstrate();
     substrate.log(null, info);
-    document.getElementById('substrate').appendChild(substrate.div);
+    document.getElementById('mainPanel').appendChild(substrate.div);
     document.getElementById('logPanel').appendChild(substrate.logDiv);
     substrate.run();
 }
@@ -17,8 +17,10 @@ window.onload = async () => {
 
 
 const logPanelDiv = document.getElementById('logPanel');
-logPanelDiv.classList.remove('hidden');
-logPanelDiv.style.width = `${  0.4 * window.innerWidth }px`;
+if (window.matchMedia('(min-width: 80ch)').matches) {
+    logPanelDiv.style.width = `${  0.4 * window.innerWidth }px`;
+    logPanelDiv.classList.remove('hidden');
+}
 
 const resizeLog = (event) => {
     event.preventDefault();

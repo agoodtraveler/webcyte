@@ -24,7 +24,7 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 
 **v0.7**: WebGL model compiler and inference environment (enable more efficient inference, allowing model deployment without external dependencies);
 
-**v0.8**:   
+**v0.8**: camera and microphone input;
 
 **v0.9**: Collection of representative substrates (models) and unit/utility library;  
 

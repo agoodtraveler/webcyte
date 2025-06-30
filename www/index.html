@@ -48,23 +48,24 @@
 
 
         <div id="contents">
-            <span id="header">
-                <span class="controls">
-                    <button title="Run all units in this substrate." onclick="runSubstrate()">
-                        <svg class="ionicon"><use href="#refreshImg"></use></svg>
-                    </button>
-                    <button title="Load substrate from local (JSON) file." onclick="loadFromFile()">
-                        <svg class="ionicon"><use href="#openImg"></use></svg>
-                    </button>
-                    <button title="Download substrate as a (JSON) file." onclick="saveToFile()">
-                        <svg class="ionicon"><use href="#saveImg"></use></svg>
-                    </button>
-                    <button title="Toggle log." onclick="toggleLog()">
-                        <svg class="ionicon"><use href="#logImg"></use></svg>
-                    </button>
+            <div id="mainPanel">
+                <span id="header">
+                    <span class="controls">
+                        <button title="Run all units in this substrate." onclick="runSubstrate()">
+                            <svg class="ionicon"><use href="#refreshImg"></use></svg>
+                        </button>
+                        <button title="Load substrate from local (JSON) file." onclick="loadFromFile()">
+                            <svg class="ionicon"><use href="#openImg"></use></svg>
+                        </button>
+                        <button title="Download substrate as a (JSON) file." onclick="saveToFile()">
+                            <svg class="ionicon"><use href="#saveImg"></use></svg>
+                        </button>
+                        <button title="Toggle log." onclick="toggleLog()">
+                            <svg class="ionicon"><use href="#logImg"></use></svg>
+                        </button>
+                    </span>
                 </span>
-            </span>
-            <div id="substrate"></div>
+            </div>
             <div id="logPanel" class="panel hidden">
                 <div class="resizer"  onmousedown="resizeLog(event)"></div>
             </div>

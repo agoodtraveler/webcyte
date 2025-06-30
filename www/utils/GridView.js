@@ -38,7 +38,11 @@ class GridView extends StateView {
                 }
                 ++frameCount;
                 if (this.onFrame) {
-                    this.onFrame(time);
+                    try {
+                        this.onFrame(time);
+                    } catch (error) {
+                        substrate.log(null, error.stack, 'error');  // TODO: should have unit.
+                    }
                 }
                 window.requestAnimationFrame(onFrame);
             } else {
