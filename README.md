@@ -11,7 +11,7 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 ## current
 **v0.1**: Proof Of Concept (POC) - good enough for a **demo**, runs training and inference.  
 
-## next
+## roadmap
 **v0.2**: remote training (running inference and training on two separate devices sharing substrate parameters and weights);  
 
 **v0.3**: implementation of [Self-Organizing Textures](https://distill.pub/selforg/2021/textures/);  
@@ -31,21 +31,8 @@ Currently it is good enough to **build**, **train** and **run** a custom impleme
 **v1.0**: profit!  
 
 
-## usage
-Available online: [webcyte.io](https://webcyte.io)  
-(TBD)
-
 
 ## system
-
-### Utilities (/www/utils/)
-Contains utilities and helpers that may be used in units and elsewhere throughout the system.
-
-### Unit (/www/Unit.js)
-(TBD)
-
-### Substrate (/www/Substrate.js)
-(TBD)
 
 ### dependencies
 - [CodeMirror](https://codemirror.net/) (v6): for the code editor:  
