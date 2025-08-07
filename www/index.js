@@ -1,5 +1,5 @@
 const VERSION = '0.1';
-var DEV_MODE = true;   // saves substrates to .js ('defaultSubstrate.js') instead of .json, if true.
+var DEV_MODE = false;   // saves substrates to .js ('defaultProject.js') instead of .json, if true.
 
 let substrate = null;
 
@@ -59,7 +59,7 @@ const saveToFile = async () => {
     const url = await makeURL();
     const link = document.body.appendChild(document.createElement('a'));
     link.href = url;
-    link.download = DEV_MODE ? 'defaultSubstrate.js' : 'substrate.json';
+    link.download = DEV_MODE ? 'defaultProject.js' : 'webcyte.json';
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
