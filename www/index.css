@@ -167,7 +167,7 @@ details summary::marker,:is(::-webkit-details-marker) {
 
 
 
-.Substrate {
+.Project {
     display: flex;
     flex-flow: column;
     height: 100%;

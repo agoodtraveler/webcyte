@@ -1,10 +1,10 @@
-class Substrate {
+class Project {
     units = [];
     logItems = [];
     div = null;
     logDiv = null;
     constructor() {
-        this.div = makeDiv('Substrate');
+        this.div = makeDiv('Project');
         this.logDiv = makeDiv('log');
     }
 

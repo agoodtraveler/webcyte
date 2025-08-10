@@ -1,17 +1,17 @@
 const VERSION = '0.1';
-var DEV_MODE = false;   // saves substrates to .js ('defaultProject.js') instead of .json, if true.
+var DEV_MODE = true;   // saves projects to .js ('defaultProject.js') instead of .json, if true.
 
-let substrate = null;
+let project = null;
 
 window.onload = async () => {
     await tf.ready();
     const info = `webcyte v${ VERSION }:  DEV_MODE = ${ DEV_MODE }; TFJS backend = ${ tf.getBackend() };  TFJS version = ${ tf.version.tfjs }`;
     console.log(info);
-    substrate = makeDefaultSubstrate();
-    substrate.log(null, info);
-    document.getElementById('mainPanel').appendChild(substrate.div);
-    document.getElementById('logPanel').appendChild(substrate.logDiv);
-    substrate.run();
+    project = makeDefaultProject();
+    project.log(null, info);
+    document.getElementById('mainPanel').appendChild(project.div);
+    document.getElementById('logPanel').appendChild(project.logDiv);
+    project.run();
 }
 
 
@@ -40,20 +40,20 @@ const resizeLog = (event) => {
 }
 const toggleLog = () => logPanelDiv.classList.toggle('hidden');
 
-const runSubstrate = () => {
-    substrate.run();
+const runProject = () => {
+    project.run();
 }
 
 const saveToFile = async () => {
     const makeURL = async () => {
         if (DEV_MODE) { 
-            return URL.createObjectURL(new Blob([ `const makeDefaultSubstrate = () => {
-                const substrate = new Substrate();
-                substrate.deserialize("${ (await substrate.serialize()).replaceAll('\\', '\\\\').replaceAll('"', '\\"') }");
-                return substrate;
+            return URL.createObjectURL(new Blob([ `const makeDefaultProject = () => {
+                const project = new Project();
+                project.deserialize("${ (await project.serialize()).replaceAll('\\', '\\\\').replaceAll('"', '\\"') }");
+                return project;
             }` ], { type: 'application/json' }));
         } else {
-            return URL.createObjectURL(new Blob([ await substrate.serialize() ], { type: 'application/json' }));
+            return URL.createObjectURL(new Blob([ await project.serialize() ], { type: 'application/json' }));
         }
     }
     const url = await makeURL();
@@ -76,8 +76,8 @@ const loadFromFile = () => {
             return;
         }
         try {
-            substrate.deserialize(await file.text());
-            substrate.log(null, 'Model loaded.');
+            project.deserialize(await file.text());
+            project.log(null, 'Model loaded.');
         } catch (error) {
             console.error('Error loading model:', error);
         }
