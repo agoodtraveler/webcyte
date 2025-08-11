@@ -10,7 +10,7 @@ class Unit {
     div = null;
     self = null;
     weights = null;
-    substrate = null;
+    project = null;
     prefixDiv = null;
     suffixDiv = null;
     editorDetails = null;
@@ -23,12 +23,12 @@ class Unit {
     get name() {
         return this.#name;
     }
-    constructor(name, code, isOpen, substrate) {
+    constructor(name, code, isOpen, project) {
         this.div = makeDiv('Unit');
         this.name = name;
         this.self = {};
         this.weights = {};
-        this.substrate = substrate;
+        this.project = project;
         const handleDiv = this.div.appendChild(makeDiv('handle'));
         const controlsDiv = handleDiv.appendChild(makeDiv('controls'));
         const runBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#playImg"></use></svg>', `Run unit: '${ this.name }' ('Ctrl + Enter' hotkey in code editor)`, () => this.run()));
@@ -50,14 +50,14 @@ class Unit {
         }
         nameDiv.onblur = () => {
             const newName = nameDiv.innerText.trim();
-            if (Unit.isValidName(newName) && this.substrate.units.filter(x => (x != this && x.name === newName)).length === 0) {
+            if (Unit.isValidName(newName) && this.project.units.filter(x => (x != this && x.name === newName)).length === 0) {
                 this.name = nameDiv.innerText;
             } else {
                 nameDiv.innerText = this.name;
             }
             nameDiv.classList.remove('invalid');
         }
-        const delBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#trashImg"></use></svg>', `Delete unit: '${ this.name }'`, () => this.substrate.removeUnit(this)));
+        const delBtn = controlsDiv.appendChild(makeButton('<svg class="ionicon" viewBox="0 0 512 512"><use href="#trashImg"></use></svg>', `Delete unit: '${ this.name }'`, () => this.project.removeUnit(this)));
         delBtn.style.marginTop = '1em';
         delBtn.style.marginBottom = '1em';
         const contentsDiv = this.div.appendChild(makeDiv('contents'));
@@ -170,21 +170,21 @@ class Unit {
     }
     run() {
         const defer = (fn) => this.#deferredFns.push(fn);
-        const log = (text) => this.substrate.log(this, text);
+        const log = (text) => this.project.log(this, text);
         let isComplete = false;
         let fn = null;
         try {
-            fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', 'log', ...this.substrate.units.map(x => x.name), this.code);
+            fn = new Function('self', 'weights', 'prefixDiv', 'suffixDiv', 'defer', 'log', ...this.project.units.map(x => x.name), this.code);
         } catch (error) {
-            this.substrate.log(this, error.stack, 'error');
+            this.project.log(this, error.stack, 'error');
             return isComplete;
         }
         try {
             this.cleanup(true);
-            fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, defer, log, ...this.substrate.units.map(x => x.self));
+            fn(this.self, this.weights, this.prefixDiv, this.suffixDiv, defer, log, ...this.project.units.map(x => x.self));
             isComplete = true;
         } catch (error) {
-            this.substrate.log(this, error.stack, 'error');
+            this.project.log(this, error.stack, 'error');
         }
         return isComplete;
     }
@@ -219,8 +219,8 @@ class Unit {
                     continue;
                 } else if (prefix[0] === 'log') {
                     currThis = () => true;
-                } else if (this.substrate.units.filter(x => x.name === prefix[0]).length > 0) {
-                    const currUnit = this.substrate.units.find(x => x.name === prefix[0]);
+                } else if (this.project.units.filter(x => x.name === prefix[0]).length > 0) {
+                    const currUnit = this.project.units.find(x => x.name === prefix[0]);
                     if (currUnit) {
                         currThis = currUnit.self;
                     }
@@ -235,7 +235,7 @@ class Unit {
         }
         if (prefix.length === 1) {
             options.push(...Unit.PARAM_NAMES.map(x => ({ label: x, type: 'variable' })));
-            options.push(...this.substrate.units.map(x => ({ label: x.name, type: 'variable' })));
+            options.push(...this.project.units.map(x => ({ label: x.name, type: 'variable' })));
         }
         options.push(...Object.getOwnPropertyNames(currThis).map(currName => {
             const currOption = { label: currName };
